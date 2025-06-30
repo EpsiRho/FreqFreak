@@ -489,7 +489,7 @@ namespace FreqFreak
                     case 4: // Inner Circle
                             // Unroll repeated code using variables for both circle types
                         double angleOffset = -Math.PI / 2;
-                        double angle = i * (2 * Math.PI / barCount) + angleOffset;
+                        double angle = (i * (2 * Math.PI / barCount) + angleOffset) + Visualizer.InstanceOptions._rotation;
                         double x = cx + radius * Math.Cos(angle);
                         double y = cy + radius * Math.Sin(angle);
                         Canvas.SetLeft(rect, x - barWidth / 2);

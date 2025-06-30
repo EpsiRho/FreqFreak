@@ -65,6 +65,8 @@ From here there is so much to control!
 	- Attack is going up, Decay is going down.
 - Invert Spectrum
 	- Normal spectrum goes from Lows to Highs (20-20000 for example), this makes it backwards, high to low (20000-20)
+- Rotation
+	- The angle to rotate the visualizer at.
 
 ### Styling Options
 - Bar Color Type
