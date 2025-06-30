@@ -14,7 +14,7 @@ There is lots of customizable values to tune the visualization to your liking!
 
 https://github.com/user-attachments/assets/fa2595fd-2736-4691-97c2-db4b03e98607
 
-On startup you'll see the visuals and the Options UI. This menu can be brought up again after being closed by right clicking the gear icon in your task bar. This icon will change to a random color on each open, to help differentiate between instances if you have multiple. The Options UI has a color picker for setting this as well.
+On startup you'll see the visuals and the Options UI. This menu can be brought up again after being closed by right clicking the gear icon in your task bar's Tray Menu (The one with the up arrow on the right that opens up to show apps that are open in the background). This icon will change to a random color on each open, to help differentiate between instances if you have multiple. The Options UI has a color picker for setting this as well.
 ![Options UI](https://i.imgur.com/wNbiNYR.png)
 ![Taskbar Tray Icon](https://i.imgur.com/PuaZwXQ.png)
 
