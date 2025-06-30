@@ -396,29 +396,32 @@ namespace FreqFreak
             double newWidth = Math.Abs(originalWidth * Math.Cos(angleRadians)) + Math.Abs(originalHeight * Math.Sin(angleRadians));
             double newHeight = Math.Abs(originalWidth * Math.Sin(angleRadians)) + Math.Abs(originalHeight * Math.Cos(angleRadians));
 
-            MainGrid.Width = originalWidth; 
-            MainGrid.Height = originalHeight;
-
             // Calculate for position 3 or 4 circles
             double radius = ((barWidth + barGap) * barCount) / (2 * Math.PI);
+            double totalRadius = radius + (Visualizer.InstanceOptions._height);
 
             switch (Visualizer.InstanceOptions._Position)
             {
                 case 3:
-                    Height = radius + newHeight * 2;
-                    Width = radius + newWidth * 2;
+                    MainGrid.Width = totalRadius * 2;
+                    MainGrid.Height = totalRadius * 2;
+                    Width = MainGrid.Width;
+                    Height = MainGrid.Height;
                     break;
                 case 4:
-                    Height = radius + newHeight;
-                    Width = radius + newWidth;
+                    MainGrid.Width = radius * 2;
+                    MainGrid.Height = radius * 2;
+                    Width = MainGrid.Width;
+                    Height = MainGrid.Height;
                     break;
                 default:
+                    MainGrid.Width = originalWidth;
+                    MainGrid.Height = originalHeight;
                     Width = newWidth;
                     Height = newHeight;
+                    MainGridLayout.Angle = angleDegrees;
                     break;
             }
-
-            MainGridLayout.Angle = angleDegrees;
         }
 
         private void UpdateBars(List<double> frame)
