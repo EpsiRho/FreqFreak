@@ -79,6 +79,7 @@ namespace FreqFreak
             PeakColorTwo.SelectedColor = Visualizer.InstanceOptions._peakColor2;
             TrayIconColor.SelectedColor = MainWindow._TrayIconColor;
             BarColorTypeInput.SelectedIndex = Visualizer.InstanceOptions._barColorType;
+            RotationInput.Text = Visualizer.InstanceOptions._rotation.ToString();
             if(Visualizer.InstanceOptions._peakColorType == -1)
             {
                 Visualizer.InstanceOptions._peakColorType = 0;
@@ -128,6 +129,11 @@ namespace FreqFreak
             if (double.TryParse(PeakHold.Text, out double hold))
             {
                 Visualizer.InstanceOptions._peakHold = hold;
+            }
+
+            if (double.TryParse(RotationInput.Text, out double rotatata))
+            {
+                Visualizer.InstanceOptions._rotation = rotatata;
             }
 
             if (int.TryParse(BarWidthInput.Text, out int barWidth))

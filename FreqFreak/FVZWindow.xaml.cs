@@ -317,41 +317,47 @@ namespace FreqFreak
 
         private void ExportFVZButton_Click(object sender, RoutedEventArgs e)
         {
-            //FVZPlayer.Fuck();
-            //return;
-            SaveFileDialog dialog = new SaveFileDialog();
-            dialog.Filter = "FFT Visualizer|*.fvz";
-            dialog.Title = "Save FVZ File";
-            string filename = System.IO.Path.GetFileNameWithoutExtension(CurrentSongPath);
-            dialog.FileName = $"{filename}.fvz";
-
-            var check = dialog.ShowDialog();
-            if (check == true)
+            try
             {
-                FVZProgress.Visibility = Visibility.Visible;
-                CurrentFvzPath = dialog.FileName;
-                FVZEncoder.SaveToFile(CurrentFvzPath);
-                FVZProgress.Visibility = Visibility.Hidden;
+                //FVZPlayer.Fuck();
+                //return;
+                SaveFileDialog dialog = new SaveFileDialog();
+                dialog.Filter = "FFT Visualizer|*.fvz";
+                dialog.Title = "Save FVZ File";
+                string filename = System.IO.Path.GetFileNameWithoutExtension(CurrentSongPath);
+                dialog.FileName = $"{filename}.fvz";
 
-                MessageBoxResult result = MessageBox.Show("File saved, open in File Explorer?", "Export Complete", MessageBoxButton.OKCancel);
+                var check = dialog.ShowDialog();
+                if (check == true)
+                {
+                    FVZProgress.Visibility = Visibility.Visible;
+                    CurrentFvzPath = dialog.FileName;
+                    FVZEncoder.SaveToFile(CurrentFvzPath);
+                    FVZProgress.Visibility = Visibility.Hidden;
 
-                if (result == MessageBoxResult.Cancel)
-                {
-                    return;
-                }
-                else
-                {
-                    try
+                    MessageBoxResult result = MessageBox.Show("File saved, open in File Explorer?", "Export Complete", MessageBoxButton.OKCancel);
+
+                    if (result == MessageBoxResult.Cancel)
                     {
-                        System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{CurrentFvzPath}\"");
+                        return;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        MessageBox.Show($"Failed to open File Explorer: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        try
+                        {
+                            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{CurrentFvzPath}\"");
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Failed to open File Explorer: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
                     }
                 }
             }
-
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to Export: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void FPSInput_TextChanged(object sender, TextChangedEventArgs e)

@@ -146,6 +146,10 @@
                         <TextBlock Grid.Column="0" Grid.Row="3" Margin="0,-5,0,0">Invert Spectrum <Span FontSize="18" ToolTip="Determines whether to show from Low End -> High End or from High End -> Low End">ⓘ</Span></TextBlock>
                         <CheckBox x:Name="InvertSpectrum" Width="100" HorizontalAlignment="Left"
                                   Click="InvertSpectrum_Click" Grid.Column="0" Grid.Row="3" Margin="0,20,0,0"/>
+
+                        <TextBlock Grid.Column="1" Grid.Row="3" Margin="0,-5,0,0">Rotation <Span FontSize="18" ToolTip="The rotation of the visualizer canvas">ⓘ</Span></TextBlock>
+                        <TextBox x:Name="RotationInput" Width="100" HorizontalAlignment="Left"
+                                 TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="3" Margin="0,20,0,0"/>
                     </Grid>
                 </GroupBox>
 
@@ -287,6 +291,7 @@
                     <Button x:Name="FVZButton" Content="Toggle FVZ Tool" Margin="10,10,10,10"
                             Click="FVZButton_Click" Padding="10,4,10,4"/>
                 </StackPanel>
+                <TextBlock Text="Version 1.1.0"/>
             </StackPanel>
         </ScrollViewer>
     </Grid>

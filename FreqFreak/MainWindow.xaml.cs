@@ -373,12 +373,52 @@ namespace FreqFreak
                 UpdateBars(frame);
                 //DecayPeaks();
                 UpdatePeakRectangles();
+                UpdateRotation();
             }
             catch (Exception)
             {
                 // This is almost always because a setting has changed mid frame, and errors will be resolved by next run
             }
             displayFpsMeter.StopFpsCounter();
+        }
+        private void UpdateRotation()
+        {
+            double angleDegrees = Visualizer.InstanceOptions._rotation; 
+            double angleRadians = angleDegrees * Math.PI / 180;
+
+            double barWidth = Visualizer.InstanceOptions._barWidth;
+            int barCount = Visualizer.InstanceOptions._bars;
+            double barGap = Visualizer.InstanceOptions._barGap;
+
+            double originalWidth = (barWidth * barCount) + (barGap * barCount);
+            double originalHeight = Visualizer.InstanceOptions._height;
+
+            double newWidth = Math.Abs(originalWidth * Math.Cos(angleRadians)) + Math.Abs(originalHeight * Math.Sin(angleRadians));
+            double newHeight = Math.Abs(originalWidth * Math.Sin(angleRadians)) + Math.Abs(originalHeight * Math.Cos(angleRadians));
+
+            MainGrid.Width = originalWidth; 
+            MainGrid.Height = originalHeight;
+
+            // Calculate for position 3 or 4 circles
+            double radius = ((barWidth + barGap) * barCount) / (2 * Math.PI);
+
+            switch (Visualizer.InstanceOptions._Position)
+            {
+                case 3:
+                    Height = radius + newHeight * 2;
+                    Width = radius + newWidth * 2;
+                    break;
+                case 4:
+                    Height = radius + newHeight;
+                    Width = radius + newWidth;
+                    break;
+                default:
+                    Width = newWidth;
+                    Height = newHeight;
+                    break;
+            }
+
+            MainGridLayout.Angle = angleDegrees;
         }
 
         private void UpdateBars(List<double> frame)
@@ -724,28 +764,7 @@ namespace FreqFreak
                 _gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
                 _peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
 
-                double barWidth = opts._barWidth;
-                int barCount = opts._bars;
-                double barGap = opts._barGap;
-
-                // Calculate for position 3 or 4 circles
-                double radius = ((barWidth + barGap) * barCount) / (2 * Math.PI);
-
-                switch (opts._Position)
-                {
-                    case 3:
-                        Height = radius + opts._height * 2;
-                        Width = radius + opts._height * 2;
-                        break;
-                    case 4:
-                        Height = radius + opts._height;
-                        Width = radius + opts._height;
-                        break;
-                    default:
-                        Height = opts._height;
-                        Width = barCount * (barWidth + barGap) + 2;
-                        break;
-                }
+                
 
                 RemovePeakBars();
                 VisCanvas.Children.Clear();

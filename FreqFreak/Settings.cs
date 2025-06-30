@@ -26,6 +26,7 @@ namespace FreqFreak
         public double _decaySpeed { get; set; }
         public float _ColorMoveSpeed { get; set; }
         public double _ColorChangeFreqency { get; set; }
+        public double _rotation { get; set; }
         public ScaleMode _scaleMode { get; set; }
 
         public int _barColorType { get; set; }
