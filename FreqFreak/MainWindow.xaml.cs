@@ -190,10 +190,16 @@ namespace FreqFreak
                     {
                         new PopupMenuItem("Settings", (_, _) => Dispatcher.Invoke(() =>
                         {
-                            if (Visualizer.OptionsWindow == null || !Visualizer.OptionsWindow.IsVisible)
-                                (Visualizer.OptionsWindow ??= new OptionsWindow()).Show();
-                            Visualizer.ShowBg = true;
-                            Visualizer.ChangeBg = true;
+                            try{
+                                if (Visualizer.OptionsWindow == null || !Visualizer.OptionsWindow.IsVisible)
+                                    (Visualizer.OptionsWindow ??= new OptionsWindow()).Show();
+                                Visualizer.ShowBg = true;
+                                Visualizer.ChangeBg = true;
+                            }
+                            catch (Exception)
+                            {
+
+                            }
                         })),
                         new PopupMenuItem("Exit", (_, _) =>{
                             _trayIcon.Dispose();
@@ -201,13 +207,18 @@ namespace FreqFreak
                             _cts.Cancel();
                             _clrCts.Cancel();
                             Environment.Exit(0);
-                            })
+                        })
                     }
                 }
             };
             _trayIcon.UpdateName(GenerateRandomString());
 
             var id = TrayIcon.CreateUniqueGuidFromString("FreqFreak");
+
+            _trayIcon.Removed += (_, _) =>
+            {
+                _failure = true;
+            };
 
             _trayIcon.Create();
         }

@@ -29,20 +29,26 @@ namespace FreqFreak
             {
                 while (!_cts.Token.IsCancellationRequested)
                 {
-                    Dispatcher.Invoke(() =>
-                    {
-                        var fpsStats = MainWindow.displayFpsMeter.GetFpsStats();
-                        var fftptStats = Visualizer.fpsMeter.GetFpsStats();
-                        double fpsStep = fpsStats.avgFps / 400;
-                        double fftpsStep = fftptStats.avgFps / 400;
-                        var fpsClr = Visualizer.GetGradientColor(new Color[] { badClr, goodClr }, fpsStep);
-                        var fftpsClr = Visualizer.GetGradientColor(new Color[] { badClr, goodClr }, fftpsStep);
+                    try { 
+                        Dispatcher.Invoke(() =>
+                        {
+                            var fpsStats = MainWindow.displayFpsMeter.GetFpsStats();
+                            var fftptStats = Visualizer.fpsMeter.GetFpsStats();
+                            double fpsStep = fpsStats.avgFps / 400;
+                            double fftpsStep = fftptStats.avgFps / 400;
+                            var fpsClr = Visualizer.GetGradientColor(new Color[] { badClr, goodClr }, fpsStep);
+                            var fftpsClr = Visualizer.GetGradientColor(new Color[] { badClr, goodClr }, fftpsStep);
 
-                        FPSMeter.Text = $"FPS Avg: {fpsStats.avgFps.ToString("00000.0")}/s | FPS: {fpsStats.curFps.ToString("00000.0")}/s | : {fpsStats.ft.ToString("0.000")}ms";
-                        FFTPSMeter.Text = $"FFTPS Avg: {fftptStats.avgFps.ToString("00000.0")}/s | FFTPS: {fftptStats.curFps.ToString("00000.0")}/s | : {fftptStats.ft.ToString("0.000")}ms";
-                        FPSStatus.Fill = new SolidColorBrush(fpsClr);
-                        FFTPSStatus.Fill = new SolidColorBrush(fftpsClr);
-                    });
+                            FPSMeter.Text = $"FPS Avg: {fpsStats.avgFps.ToString("00000.0")}/s | FPS: {fpsStats.curFps.ToString("00000.0")}/s | : {fpsStats.ft.ToString("0.000")}ms";
+                            FFTPSMeter.Text = $"FFTPS Avg: {fftptStats.avgFps.ToString("00000.0")}/s | FFTPS: {fftptStats.curFps.ToString("00000.0")}/s | : {fftptStats.ft.ToString("0.000")}ms";
+                            FPSStatus.Fill = new SolidColorBrush(fpsClr);
+                            FFTPSStatus.Fill = new SolidColorBrush(fftpsClr);
+                        });
+                    }
+                    catch (Exception)
+                    {
+
+                    }
                     Thread.Sleep(16);
                 }
             });
