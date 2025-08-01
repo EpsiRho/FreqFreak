@@ -1,0 +1,215 @@
+﻿<Window x:Class="FreqFreak.PhotoCutout"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FreqFreak"
+        mc:Ignorable="d"
+        AllowsTransparency="True"
+        ResizeMode="NoResize"      
+        WindowStyle="None"
+        Foreground="{StaticResource MainText}"
+        Background="Transparent"
+        Title="PhotoCutout" Height="450" Width="450">
+    <Grid IsHitTestVisible="True">
+        <!-- Window Title -->
+        <Grid Height="30"  
+              x:Name="TitleBar"
+              Background="#353535"
+              VerticalAlignment="Top"
+              MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+              MouseLeftButtonUp="TitleBar_MouseLeftButtonUp">
+            <Image Source="/FreqFreak;component/Images/icon2.png"
+                   HorizontalAlignment="Left"
+                   Margin="5,1,0,2"/>
+            <TextBlock Text="Cutout Manager"
+                       FontSize="16"
+                       Margin="35,4,0,0"/>
+
+            <StackPanel HorizontalAlignment="Right"
+                        Orientation="Horizontal">
+                <Button Width="40" 
+                        x:Name="MinimizeButton"
+                        Click="Minimize_Click"
+                        Style="{StaticResource TitleButtonStyle}">
+                    <Path Data="F1 M 20 7.5 L 20 10.498047 L 0 10.498047 L 0 7.5 Z " Fill="#7e7e7e" Stretch="Uniform" 
+                  Height="15" Width="15" Margin="0,4,0,0"/>
+                </Button>
+                <Button Width="40"
+                        x:Name="ExitButton"
+                        Click="ExitButton_Click"
+                        Style="{StaticResource TitleButtonStyle}">
+                    <Path Data="F1 M 19.814453 2.314453 L 12.119141 10 L 19.814453 17.685547 L 17.685547 19.814453 L 10 12.119141 L 2.314453 19.814453 L 0.185547 17.685547 L 7.880859 10 L 0.185547 2.314453 L 2.314453 0.185547 L 10 7.880859 L 17.685547 0.185547 Z " 
+                  Fill="#7e7e7e" Stretch="Uniform" Height="10" Width="10" Margin="0,2,0,0"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Window Border -->
+        <Border BorderThickness="3"
+                x:Name="WindowBorder"
+                Margin="0,30,0,0"
+                IsHitTestVisible="True"
+                Panel.ZIndex="5"
+                BorderBrush="#7e7e7e"/>
+
+        <Border BorderThickness="3"
+                Margin="0,30,0,0"
+                IsHitTestVisible="True"
+                Panel.ZIndex="0"
+                Background="{StaticResource MainBg}"/>
+
+        <Grid Margin="0,30,0,0" IsHitTestVisible="True">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Header="Cutout List" Grid.Column="0" Margin="10" IsHitTestVisible="True">
+                <ListView x:Name="CutoutList" 
+                          Style="{StaticResource WinUI3ListViewStyle}" 
+                          ItemContainerStyle="{StaticResource WinUI3ListViewItemStyle}"
+                          SelectionChanged="CutoutList_SelectionChanged"
+                          IsHitTestVisible="True"/>
+            </GroupBox>
+
+            <GroupBox Header="Cutout Settings" Grid.Column="1" Margin="10">
+                <Grid VerticalAlignment="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="40px"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Button x:Name="AddButton"
+                            Style="{StaticResource WinUI3ButtonStyle}"
+                            Margin="5"
+                            Click="AddButton_Click"
+                            Grid.Column="0"
+                            Grid.Row="0">
+                        <Path Data="F1 M 20 9.375 L 20 10.625 L 10.625 10.625 L 10.625 20 L 9.375 20 L 9.375 10.625 L 0 10.625 L 0 9.375 L 9.375 9.375 L 9.375 0 L 10.625 0 L 10.625 9.375 Z " 
+                              Fill="White" Stretch="Uniform" />
+                    </Button>
+                    
+                    <Button x:Name="DeleteButton"
+                            Style="{StaticResource WinUI3ButtonStyle}"
+                            Margin="5"
+                            Click="DeleteButton_Click"
+                            Grid.Column="1"
+                            Grid.Row="0">
+                        <Path Data="F1 M 17.5 3.75 L 16.25 3.75 L 16.25 18.125 C 16.25 18.385416 16.201172 18.629557 16.103516 18.857422 C 16.005859 19.085287 15.872396 19.283854 15.703125 19.453125 C 15.533854 19.622396 15.335286 19.755859 15.107422 19.853516 C 14.879557 19.951172 14.635416 20 14.375 20 L 4.375 20 C 4.114583 20 3.870442 19.951172 3.642578 19.853516 C 3.414713 19.755859 3.216146 19.622396 3.046875 19.453125 C 2.877604 19.283854 2.744141 19.085287 2.646484 18.857422 C 2.548828 18.629557 2.5 18.385416 2.5 18.125 L 2.5 3.75 L 1.25 3.75 L 1.25 2.5 L 6.25 2.5 L 6.25 1.25 C 6.25 1.074219 6.282552 0.911459 6.347656 0.761719 C 6.41276 0.61198 6.502278 0.480145 6.616211 0.366211 C 6.730143 0.252279 6.861979 0.162762 7.011719 0.097656 C 7.161458 0.032553 7.324218 0 7.5 0 L 11.25 0 C 11.425781 0 11.588541 0.032553 11.738281 0.097656 C 11.888021 0.162762 12.019856 0.252279 12.133789 0.366211 C 12.247721 0.480145 12.337238 0.61198 12.402344 0.761719 C 12.467447 0.911459 12.5 1.074219 12.5 1.25 L 12.5 2.5 L 17.5 2.5 Z M 7.5 2.5 L 11.25 2.5 L 11.25 1.25 L 7.5 1.25 Z M 15 3.75 L 3.75 3.75 L 3.75 18.125 C 3.75 18.294271 3.811849 18.440756 3.935547 18.564453 C 4.059245 18.68815 4.205729 18.75 4.375 18.75 L 14.375 18.75 C 14.544271 18.75 14.690755 18.68815 14.814453 18.564453 C 14.93815 18.440756 14.999999 18.294271 15 18.125 Z M 7.5 16.25 L 6.25 16.25 L 6.25 6.25 L 7.5 6.25 Z M 10 16.25 L 8.75 16.25 L 8.75 6.25 L 10 6.25 Z M 12.5 16.25 L 11.25 16.25 L 11.25 6.25 L 12.5 6.25 Z " 
+                              Fill="White" Stretch="Uniform" />
+                    </Button>
+
+                    <Grid x:Name="InputGrid" Grid.Row="1" Grid.ColumnSpan="2" IsEnabled="False">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="0px"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Column="0"
+                                    Grid.Row="1">
+                            <TextBlock Text="Height" 
+                                       Margin="7,5,5,0" />
+                            <TextBox x:Name="HeightInput" 
+                                     Margin="5,5,5,5" 
+                                     TextChanged="Input_TextChanged"
+                                     Style="{StaticResource WinUI3TextBoxStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1"
+                                    Grid.Row="1">
+                            <TextBlock Text="Width" 
+                                       Margin="7,5,5,0" />
+                            <TextBox x:Name="WidthInput" 
+                                     Margin="5,5,5,5" 
+                                     TextChanged="Input_TextChanged"
+                                     Style="{StaticResource WinUI3TextBoxStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="0"
+                                    Grid.Row="2">
+                            <TextBlock Text="Bass Scale" 
+                                       Margin="7,5,5,0" />
+                            <TextBox x:Name="BassScaleInput" 
+                                     Margin="5,5,5,5" 
+                                     TextChanged="Input_TextChanged"
+                                     Style="{StaticResource WinUI3TextBoxStyle}"/>
+                        </StackPanel>
+                    
+                        <StackPanel Grid.Column="1"
+                                    Grid.Row="2">
+                            <TextBlock Text="Bass Shake" 
+                                       Margin="7,5,5,0" />
+                            <TextBox x:Name="BassShakeInput" 
+                                     Margin="5,5,5,5" 
+                                     TextChanged="Input_TextChanged"
+                                     Style="{StaticResource WinUI3TextBoxStyle}"/>
+                        </StackPanel>
+                    
+                        <StackPanel Grid.Column="0"
+                                    Grid.Row="3">
+                            <TextBlock Text="X Pos" 
+                                       Margin="7,5,5,0" />
+                            <TextBox x:Name="XPosInput" 
+                                     Margin="5,5,5,5" 
+                                     TextChanged="Input_TextChanged"
+                                     Style="{StaticResource WinUI3TextBoxStyle}"/>
+                        </StackPanel>
+                    
+                        <StackPanel Grid.Column="1"
+                                    Grid.Row="3">
+                            <TextBlock Text="Y Pos" 
+                                       Margin="7,5,5,0" />
+                            <TextBox x:Name="YPosInput" 
+                                     Margin="5,5,5,5" 
+                                     TextChanged="Input_TextChanged"
+                                     Style="{StaticResource WinUI3TextBoxStyle}"/>
+                        </StackPanel>
+                    
+                        <StackPanel Grid.Column="0"
+                                    Grid.Row="4">
+                            <TextBlock Text="Rotation" 
+                                       Margin="7,5,5,0" />
+                            <TextBox x:Name="RotationInput" 
+                                     Margin="5,5,5,5" 
+                                     TextChanged="Input_TextChanged"
+                                     Style="{StaticResource WinUI3TextBoxStyle}"/>
+                        </StackPanel>
+                    
+                        <StackPanel Grid.Column="0"
+                                    Grid.Row="5">
+                            <TextBlock Text="Always On Top" 
+                                       Margin="7,5,5,0" />
+                            <CheckBox Style="{StaticResource WinUI3CheckBoxStyle}"
+                                      Margin="7,6,5,0" 
+                                      Checked="AlwaysOnTopInput_Checked"
+                                      x:Name="AlwaysOnTopInput"/>
+                        </StackPanel>
+                    
+                        <StackPanel Grid.Column="1"
+                                    Grid.Row="5">
+                            <TextBlock Text="Draggable" 
+                                       Margin="7,5,5,0" />
+                            <CheckBox Style="{StaticResource WinUI3CheckBoxStyle}"
+                                      Margin="7,6,5,0" 
+                                      Checked="Draggable_Checked"
+                                      Unchecked="Draggable_Unchecked"
+                                      x:Name="Draggable"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </GroupBox>
+        </Grid>
+    </Grid>
+</Window>

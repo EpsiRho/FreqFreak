@@ -1,10 +1,13 @@
 ﻿using FFTVIS;
+using LibMaterial.NET;
 using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace FreqFreak
 {
@@ -15,11 +18,24 @@ namespace FreqFreak
         public static int Playing = 0;
         public static AudioEncoder FVZEncoder;
         public static FrequencyVisualizer DecodedFV;
+        public Dispatcher _fvzDispatcher;
         DateTime StartTime = DateTime.Now;
         bool CanSeek = false;
+        private Color bgColor = Color.FromArgb(200, 26, 26, 26);
+        private NormalDragHandler dragHandler;
         public FVZWindow()
         {
+            dragHandler = new(this);
             InitializeComponent();
+            Loaded += (_, __) =>
+            {
+                var _hwnd = new WindowInteropHelper(this).Handle;
+                //LibApply.Apply_Backdrop_Effect(HWnd: _hwnd, BackdropFlag: LibImport.DwmSystemBackdropTypeFlgs.DWMSBT_TRANSIENTWINDOW);
+                //LibApply.Apply_Light_Theme(HWnd: _hwnd, Dark: false);
+                var alpha = bgColor.A;
+                var bgr = (uint)(bgColor.B | (bgColor.G << 8) | (bgColor.R << 16));
+                LibApply.Apply_Custom_Acrylic(_hwnd, alpha: alpha, bgr: bgr);
+            };
             DataContext = MainWindow.FVZPlayer;
             this.Closed += (s, e) =>
             {
@@ -40,33 +56,36 @@ namespace FreqFreak
 
         public void SetAccentColor()
         {
-            var brush = new SolidColorBrush(MainWindow._TrayIconColor);
-            FVZProgress.Foreground = brush;
-            var track = (Track)PlaybackSlider.Template.FindName("PART_Track", PlaybackSlider);
-            var track2 = (Track)PlaybackSlider.Template.FindName("PART_Track", VolumeSlider);
-
-
-            if (track != null)
+            Dispatcher.Invoke(() =>
             {
-                if (track.DecreaseRepeatButton != null)
-                    track.DecreaseRepeatButton.Background = brush;
-                track.DecreaseRepeatButton.Height = 5;
+                var brush = new SolidColorBrush(MainWindow._TrayIconColor);
+                FVZProgress.Foreground = brush;
+                var track = (Track)PlaybackSlider.Template.FindName("PART_Track", PlaybackSlider);
+                var track2 = (Track)PlaybackSlider.Template.FindName("PART_Track", VolumeSlider);
 
-                if (track.IncreaseRepeatButton != null)
-                    track.IncreaseRepeatButton.Background = new SolidColorBrush(Color.FromArgb(255, (byte)Math.Clamp(MainWindow._TrayIconColor.R - 55, 0, 255), (byte)Math.Clamp(MainWindow._TrayIconColor.G - 55, 0, 255), (byte)Math.Clamp(MainWindow._TrayIconColor.B - 55, 0, 255)));
-                track.IncreaseRepeatButton.Height = 5;
-            }
 
-            if (track2 != null)
-            {
-                if (track2.DecreaseRepeatButton != null)
-                    track2.DecreaseRepeatButton.Background = brush;
-                track2.DecreaseRepeatButton.Height = 5;
+                if (track != null)
+                {
+                    if (track.DecreaseRepeatButton != null)
+                        track.DecreaseRepeatButton.Background = brush;
+                    track.DecreaseRepeatButton.Height = 5;
 
-                if (track2.IncreaseRepeatButton != null)
-                    track2.IncreaseRepeatButton.Background = new SolidColorBrush(Color.FromArgb(255, (byte)Math.Clamp(MainWindow._TrayIconColor.R - 55, 0, 255), (byte)Math.Clamp(MainWindow._TrayIconColor.G - 55, 0, 255), (byte)Math.Clamp(MainWindow._TrayIconColor.B - 55, 0, 255)));
-                track2.IncreaseRepeatButton.Height = 5;
-            }
+                    if (track.IncreaseRepeatButton != null)
+                        track.IncreaseRepeatButton.Background = new SolidColorBrush(Color.FromArgb(255, (byte)Math.Clamp(MainWindow._TrayIconColor.R - 55, 0, 255), (byte)Math.Clamp(MainWindow._TrayIconColor.G - 55, 0, 255), (byte)Math.Clamp(MainWindow._TrayIconColor.B - 55, 0, 255)));
+                    track.IncreaseRepeatButton.Height = 5;
+                }
+
+                if (track2 != null)
+                {
+                    if (track2.DecreaseRepeatButton != null)
+                        track2.DecreaseRepeatButton.Background = brush;
+                    track2.DecreaseRepeatButton.Height = 5;
+
+                    if (track2.IncreaseRepeatButton != null)
+                        track2.IncreaseRepeatButton.Background = new SolidColorBrush(Color.FromArgb(255, (byte)Math.Clamp(MainWindow._TrayIconColor.R - 55, 0, 255), (byte)Math.Clamp(MainWindow._TrayIconColor.G - 55, 0, 255), (byte)Math.Clamp(MainWindow._TrayIconColor.B - 55, 0, 255)));
+                    track2.IncreaseRepeatButton.Height = 5;
+                }
+            });
         }
 
         private void PlayButton_Click(object sender, RoutedEventArgs e)
@@ -436,6 +455,112 @@ namespace FreqFreak
             {
                 FVZPlayer.AudioDelayMs = 0; // Reset to 0 if parsing fails
             }
+        }
+
+
+        // Window re-management
+        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            //var offset = e.GetPosition(this);
+            //DragWorkaround.StartDragging(this, offset);
+            dragHandler.BeginDrag(e);
+        }
+
+        private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            dragHandler.EndDrag();
+        }
+
+        // Resize helper
+        private Point _dragStart;
+        private Rect _startRect;
+
+        private void Resize_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (Mouse.Capture(sender as IInputElement))
+            {
+                _dragStart = PointToScreen(e.GetPosition(this));
+                _startRect = new Rect(Left, Top, ActualWidth, ActualHeight);
+                MouseMove += OnResizeMouseMove;
+                MouseLeftButtonUp += OnResizeMouseLeftButtonUp;
+                WindowBorder.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 200, 200, 200));
+            }
+        }
+        Color[] rainbow = new Color[]
+                        {
+                        Color.FromArgb(255, 255, 0, 255),    // A# - Purple
+                        Color.FromArgb(255, 128, 0, 255),    // A  - Blue-Purple
+                        Color.FromArgb(255, 0,   0, 255),    // G# - Blue
+                        Color.FromArgb(255, 0, 128, 255),    // G  - Cyan-Blue
+                        Color.FromArgb(255, 0, 255, 255),    // F# - Cyan
+                        Color.FromArgb(255, 0, 255, 128),    // F  - Green-Cyan
+                        Color.FromArgb(255,   0, 255, 0),    // E  - Green
+                        Color.FromArgb(255, 128, 255, 0),    // D# - Yellow-Green
+                        Color.FromArgb(255, 255, 255, 0),    // D  - Yellow
+                        Color.FromArgb(255, 255, 128, 0),    // C# - Red-Orange
+                        Color.FromArgb(255, 255,   0, 0),    // C  - Red
+                        };
+        private void OnResizeMouseMove(object? o, MouseEventArgs e)
+        {
+            this.Dispatcher.BeginInvoke(() =>
+            {
+                Point current = PointToScreen(e.GetPosition(this));
+                Vector delta = current - _dragStart;
+
+                // Which edge are we dragging?
+                FrameworkElement fe = (FrameworkElement)Mouse.Captured;
+                if (fe == null)
+                {
+                    return;
+                }
+
+                bool left = fe.Name.Contains("Left");
+                bool right = fe.Name.Contains("Right");
+                bool top = fe.Name.Contains("Top");
+                bool bottom = fe.Name.Contains("Bottom");
+
+                Rect r = _startRect;
+
+                if (left) { r.X += delta.X; r.Width -= delta.X; }
+                if (right) { r.Width += delta.X; }
+                if (top) { r.Y += delta.Y; r.Height -= delta.Y; }
+                if (bottom) { r.Height += delta.Y; }
+
+                // Don't let it get negative
+                if (r.Width > MinWidth)
+                {
+                    Left = r.X;
+                    Width = r.Width;
+                }
+                else
+                {
+                    r.Width = MinWidth;
+                    Left = r.X;
+                    Width = r.Width;
+                }
+
+                if (r.Height > MinHeight) { Top = r.Y; Height = r.Height; }
+
+
+                WindowBorder.BorderBrush = new SolidColorBrush(Visualizer.GetGradientColor(rainbow, ((1000000 - (r.Width * r.Height)) / 550000)));
+            });
+        }
+        private void OnResizeMouseLeftButtonUp(object? o, MouseButtonEventArgs e)
+        {
+            MouseMove -= OnResizeMouseMove;
+            MouseLeftButtonUp -= OnResizeMouseLeftButtonUp;
+            Mouse.Capture(null);
+            WindowBorder.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 126, 126, 126));
+        }
+
+        private void Minimize_Click(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = WindowState.Minimized;
+        }
+
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
         }
     }
 }

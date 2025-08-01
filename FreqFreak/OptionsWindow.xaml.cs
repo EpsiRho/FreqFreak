@@ -1,7 +1,17 @@
-﻿using Newtonsoft.Json;
+﻿using H.NotifyIcon;
+using H.NotifyIcon.Core;
+using LibMaterial.NET;
+using Newtonsoft.Json;
+using System.Diagnostics;
+using System.Reflection.Metadata;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace FreqFreak
 {
@@ -9,11 +19,20 @@ namespace FreqFreak
     {
         private bool AllowValueSet;
         private CancellationTokenSource _cts = new();
-        private Color badClr = Color.FromArgb(255, 255, 0, 0);
-        private Color goodClr = Color.FromArgb(255, 0, 255, 0);
+        private Color badClr = Color.FromArgb(255, 205, 10, 44);
+        private Color goodClr = Color.FromArgb(0, 205, 10, 44);
+        private Color bgColor = Color.FromArgb(200, 26, 26, 26);
+        private Color pitchLockColor = Color.FromArgb(70, 0, 184, 255);
+        private Color transparent = Color.FromArgb(0, 205, 10, 44);
+        private Color transparentPitch = Color.FromArgb(0, 0, 184, 255);
+        private DateTime lastPitchChange = DateTime.MinValue;
+        private string lastPitch = "";
+        public Dispatcher _optionsDispatcher;
+        public NormalDragHandler dragHandler;
 
         public OptionsWindow()
         {
+            dragHandler = new(this);
             AllowValueSet = false;
 
             this.Closed += (sender, e) =>
@@ -30,19 +49,56 @@ namespace FreqFreak
                 while (!_cts.Token.IsCancellationRequested)
                 {
                     try { 
-                        Dispatcher.Invoke(() =>
+                        if(_optionsDispatcher == null)
                         {
-                            var fpsStats = MainWindow.displayFpsMeter.GetFpsStats();
-                            var fftptStats = Visualizer.fpsMeter.GetFpsStats();
-                            double fpsStep = fpsStats.avgFps / 400;
-                            double fftpsStep = fftptStats.avgFps / 400;
+                            continue;
+                        }
+                        _optionsDispatcher.BeginInvoke(() =>
+                        {
+                            //var fpsRoll = MainWindow.displayFpsMeter.RollingFps;
+                            //var fftpsRoll = Visualizer.fpsMeter.RollingFps;
+
+                            var fps = MainWindow.displayFpsMeter.RollingFps;
+                            var fftps = Visualizer.fpsMeter.RollingFps;
+
+                            double fpsStep = fps / 80;
+                            double fftpsStep = fftps / 120;
+
+                            var timeSinceLastChange = (DateTime.Now - lastPitchChange).TotalMilliseconds;
+                            double pitchStep = timeSinceLastChange / 1000;
+                            if(lastPitch != MainWindow.PitchText)
+                            {
+                                lastPitch = MainWindow.PitchText;
+                                lastPitchChange = DateTime.Now;
+                            }
+
+
                             var fpsClr = Visualizer.GetGradientColor(new Color[] { badClr, goodClr }, fpsStep);
                             var fftpsClr = Visualizer.GetGradientColor(new Color[] { badClr, goodClr }, fftpsStep);
+                            var pitchClr = Visualizer.GetGradientColor(new Color[] { transparentPitch, pitchLockColor }, pitchStep);
+                            //var pitchClr = PitchDetector.GetPitchColor(MainWindow.PitchFreq, Visualizer.InstanceOptions._customNoteGradientColors);
 
-                            FPSMeter.Text = $"FPS Avg: {fpsStats.avgFps.ToString("00000.0")}/s | FPS: {fpsStats.curFps.ToString("00000.0")}/s | : {fpsStats.ft.ToString("0.000")}ms";
-                            FFTPSMeter.Text = $"FFTPS Avg: {fftptStats.avgFps.ToString("00000.0")}/s | FFTPS: {fftptStats.curFps.ToString("00000.0")}/s | : {fftptStats.ft.ToString("0.000")}ms";
-                            FPSStatus.Fill = new SolidColorBrush(fpsClr);
-                            FFTPSStatus.Fill = new SolidColorBrush(fftpsClr);
+                            //fpsClr.A = 60;
+                            //fftpsClr.A = 60;
+                            //pitchClr.A = 30;
+
+                            if(ActualWidth < 440)
+                            {
+                                FPSMeter.Text = $"{fps.ToString("0000.0")}/s";
+                                FFTPSMeter.Text = $"{fftps.ToString("0000.0")}/s";
+                                PitchDisplay.Text = $"{MainWindow.PitchFreq.ToString("0000")}hz";
+                            }
+                            else
+                            {
+                                FPSMeter.Text = $"Render: {fps.ToString("00000.0")}/s";
+                                FFTPSMeter.Text = $"Spectra: {fftps.ToString("00000.0")}/s";
+                                PitchDisplay.Text = MainWindow.PitchText;
+                            }
+
+                            var brush = MainWindow.GetHorizontalGradientBrush(new Color[] { fpsClr, fpsClr, fftpsClr, fftpsClr, pitchClr });
+                            FPSStatus.Background = brush;
+                            //FFTPSStatus.Background = new SolidColorBrush(fftpsClr);
+                            //PitchDisplayColor.Background = new SolidColorBrush(pitchClr);
                         });
                     }
                     catch (Exception)
@@ -56,7 +112,34 @@ namespace FreqFreak
 
             InitializeComponent();
 
+            if (!Visualizer._captureCTS.IsCancellationRequested)
+            {
+                ((Path)PlayPauseButton.Content).Data = Geometry.Parse("F1 M 6.25 2.5 L 7.5 2.5 L 7.5 17.5 L 6.25 17.5 Z M 13.75 2.5 L 13.75 17.5 L 12.5 17.5 L 12.5 2.5 Z ");
+            }
+            else
+            {
+                ((Path)PlayPauseButton.Content).Data = Geometry.Parse("F1 M 17.5 10 L 5 18.75 L 5 1.25 Z M 6.25 16.347656 L 15.322266 10 L 6.25 3.652344 Z ");
+            }
+
+            //base.on(EventArgs.Empty);
+
+            Loaded += (_, __) =>
+            {
+                _optionsDispatcher.BeginInvoke(() =>
+                {
+                    var _hwnd = new WindowInteropHelper(this).Handle;
+                    //LibApply.Apply_Backdrop_Effect(HWnd: _hwnd, BackdropFlag: LibImport.DwmSystemBackdropTypeFlgs.DWMSBT_TRANSIENTWINDOW);
+                    //LibApply.Apply_Light_Theme(HWnd: _hwnd, Dark: false);
+                    var alpha = bgColor.A;
+                    var bgr = (uint)(bgColor.B | (bgColor.G << 8) | (bgColor.R << 16));
+                    LibApply.Apply_Custom_Acrylic(_hwnd, alpha: alpha, bgr: bgr);
+                });
+            };
+
             ResetMenu();
+
+            Visualizer.ShowBg = !PreviewInput.IsChecked.Value;
+            Visualizer.ChangeBg = true;
 
             AllowValueSet = true;
         }
@@ -77,25 +160,102 @@ namespace FreqFreak
             FFTResolutionInput.Text = Visualizer.InstanceOptions._fftSize.ToString();
             SpectrogramInput.Text = Visualizer.InstanceOptions._scaleMode.ToString();
             RangeInput.Text = Visualizer.InstanceOptions._dbRange.ToString();
-            PosInput.SelectedIndex = Visualizer.InstanceOptions._Position;
+            AudioChannelInput.SelectedIndex = (int)Visualizer.InstanceOptions._channelMode;
+            var curMode = Visualizer.InstanceOptions._visualizationMode.ToString();
+            if (AudioChannelInput.Text == "Stereo")
+            {
+                if (curMode != "Center" && curMode != "Oscilloscope" && curMode != "InnerCircle" && curMode != "OuterCircle")
+                {
+                    PosInput.Text = "Center";
+                }
+                else
+                {
+                    PosInput.Text = curMode;
+                }
+            }
+            else
+            {
+                if (curMode == "Oscilloscope")
+                {
+                    PosInput.Text = "Bottom";
+                }
+                else
+                {
+                    PosInput.Text = curMode;
+                }
+            }
+
             ShowPeaksInput.IsChecked = Visualizer.InstanceOptions._showPeaks;
             BarColorOne.SelectedColor = Visualizer.InstanceOptions._barColor1;
             BarColorTwo.SelectedColor = Visualizer.InstanceOptions._barColor2;
             PeakColor.SelectedColor = Visualizer.InstanceOptions._peakColor;
             PeakColorTwo.SelectedColor = Visualizer.InstanceOptions._peakColor2;
             TrayIconColor.SelectedColor = MainWindow._TrayIconColor;
-            BarColorTypeInput.SelectedIndex = Visualizer.InstanceOptions._barColorType;
-            RotationInput.Text = Visualizer.InstanceOptions._rotation.ToString();
-            if(Visualizer.InstanceOptions._peakColorType == -1)
+            BarColorTypeInput.SelectedIndex = (int)Visualizer.InstanceOptions._barColorType;
+            PeakColorTypeInput.SelectedIndex = Visualizer.InstanceOptions._peakColorType == ColorMode.Match ? 0 : ((int)Visualizer.InstanceOptions._peakColorType + 1);
+
+            if (Visualizer.InstanceOptions._barColorType == ColorMode.GradientVertical || Visualizer.InstanceOptions._barColorType == ColorMode.GradientHorizontal
+                || Visualizer.InstanceOptions._barColorType == ColorMode.GradientHeight || Visualizer.InstanceOptions._barColorType == ColorMode.GradientPitch || Visualizer.InstanceOptions._barColorType == ColorMode.GradientFrequency)
             {
-                Visualizer.InstanceOptions._peakColorType = 0;
+                BarColorOne.Visibility = Visibility.Collapsed;
+                BarColorTwo.Visibility = Visibility.Collapsed;
+                ColorOneLabel.Visibility = Visibility.Collapsed;
+                ColorTwoLabel.Visibility = Visibility.Collapsed;
+                SwapButton.Visibility = Visibility.Collapsed;
+
+                GradientEditButton.Visibility = Visibility.Visible;
             }
-            PeakColorTypeInput.SelectedIndex = Visualizer.InstanceOptions._peakColorType;
+            else
+            {
+                BarColorOne.Visibility = Visibility.Visible;
+                BarColorTwo.Visibility = Visibility.Visible;
+                ColorOneLabel.Visibility = Visibility.Visible;
+                ColorTwoLabel.Visibility = Visibility.Visible;
+                SwapButton.Visibility = Visibility.Visible;
+
+                GradientEditButton.Visibility = Visibility.Collapsed;
+            }
+            if (Visualizer.InstanceOptions._peakColorType == ColorMode.GradientVertical || Visualizer.InstanceOptions._peakColorType == ColorMode.GradientHorizontal
+                || Visualizer.InstanceOptions._peakColorType == ColorMode.GradientHeight || Visualizer.InstanceOptions._peakColorType == ColorMode.GradientPitch || Visualizer.InstanceOptions._peakColorType == ColorMode.GradientFrequency)
+            {
+                PeakColor.Visibility = Visibility.Collapsed;
+                PeakColorTwo.Visibility = Visibility.Collapsed;
+                ColorThreeLabel.Visibility = Visibility.Collapsed;
+                ColorFourLabel.Visibility = Visibility.Collapsed;
+                PeakSwapButton.Visibility = Visibility.Collapsed;
+
+                PeakGradientEditButton.Visibility = Visibility.Visible;
+            }
+            else if (Visualizer.InstanceOptions._peakColorType == ColorMode.Match)
+            {
+                PeakColor.Visibility = Visibility.Collapsed;
+                PeakColorTwo.Visibility = Visibility.Collapsed;
+                ColorThreeLabel.Visibility = Visibility.Collapsed;
+                ColorFourLabel.Visibility = Visibility.Collapsed;
+                PeakSwapButton.Visibility = Visibility.Collapsed;
+
+                PeakGradientEditButton.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                PeakColor.Visibility = Visibility.Visible;
+                PeakColorTwo.Visibility = Visibility.Visible;
+                ColorThreeLabel.Visibility = Visibility.Visible;
+                ColorFourLabel.Visibility = Visibility.Visible;
+                PeakSwapButton.Visibility = Visibility.Visible;
+
+                PeakGradientEditButton.Visibility = Visibility.Collapsed;
+            }
+
+            RotationInput.Text = Visualizer.InstanceOptions._rotation.ToString();
             PeakDecay.Text = Visualizer.InstanceOptions._peakDecay.ToString();
             PeakHold.Text = Visualizer.InstanceOptions._peakHold.ToString();
             ColorMoveSpeedInput.Text = Visualizer.InstanceOptions._ColorMoveSpeed.ToString();
             ColorChangeFreqInput.Text = Visualizer.InstanceOptions._ColorChangeFreqency.ToString();
             InvertSpectrum.IsChecked = Visualizer.InstanceOptions._invertSpectrum;
+
+            ScaleInput.Text = Visualizer.InstanceOptions._bassScale.ToString();
+            ShakeInput.Text = Visualizer.InstanceOptions._bassShake.ToString();
 
             if (Visualizer.InstanceOptions._rotateColor == 0)
             {
@@ -109,11 +269,19 @@ namespace FreqFreak
             {
                 RightMovement.IsChecked = true;
             }
+
+            Visualizer.MainWin.Dispatcher.BeginInvoke(() =>
+            {
+                Visualizer.MainWin.OscView.Visibility = (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Oscilloscope) ? Visibility.Visible : Visibility.Collapsed;
+                Visualizer.MainWin.VisCanvas.Visibility = (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Oscilloscope) ? Visibility.Collapsed : Visibility.Visible;
+            });
+              
         }
         private void SetValues()
         {
             // Set values (most of them anyway)
             if (!AllowValueSet) return;
+            AllowValueSet = false;
 
             if (int.TryParse(BarHeightInput.Text, out int height))
             {
@@ -196,6 +364,16 @@ namespace FreqFreak
                 Visualizer.InstanceOptions._decaySpeed = barDecay;
             }
 
+            if (double.TryParse(ScaleInput.Text, out double bassScale))
+            {
+                Visualizer.InstanceOptions._bassScale = bassScale;
+            }
+
+            if (double.TryParse(ShakeInput.Text, out double bassShake))
+            {
+                Visualizer.InstanceOptions._bassShake = bassShake;
+            }
+
             int fftOut = Visualizer.InstanceOptions._fftSize;
             if (int.TryParse((string)((ComboBoxItem)FFTResolutionInput.SelectedItem).Content, out fftOut))
             {
@@ -217,7 +395,29 @@ namespace FreqFreak
                 Visualizer.InstanceOptions._dbRange = dbRange;
             }
 
-            Visualizer.InstanceOptions._Position = PosInput.SelectedIndex;
+            if(PosInput.SelectedItem != null)
+            {
+                string selectedMode = (string)((ComboBoxItem)(PosInput.SelectedItem)).Content;
+                if (Enum.TryParse(typeof(VisualizationMode), selectedMode, out object result))
+                {
+                    Visualizer.InstanceOptions._visualizationMode = (VisualizationMode)result;
+                    Visualizer.MainWin.Dispatcher.BeginInvoke(() =>
+                    {
+                        Visualizer.MainWin.OscView.Visibility = (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Oscilloscope) ? Visibility.Visible : Visibility.Collapsed;
+                        Visualizer.MainWin.VisCanvas.Visibility = (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Oscilloscope) ? Visibility.Collapsed : Visibility.Visible;
+                    });
+                    
+                }
+            }
+            if (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Oscilloscope)
+            {
+                AudioChannelInput.SelectedIndex = 3;
+            }
+            else if(Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Bottom || Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Top && AudioChannelInput.SelectedIndex != 0)
+            {
+                AudioChannelInput.SelectedIndex = 0;
+            }
+
             Visualizer.InstanceOptions._showPeaks = ShowPeaksInput.IsChecked.Value;
 
             var boclr = Color.FromArgb((byte)BarColorOne.Color.A, (byte)BarColorOne.Color.RGB_R, (byte)BarColorOne.Color.RGB_G, (byte)BarColorOne.Color.RGB_B);
@@ -228,6 +428,10 @@ namespace FreqFreak
             Visualizer.InstanceOptions._peakColor = pclr;
 
             Visualizer.UpdateSettings = true;
+            Visualizer.UpdatePeaks = true;
+            MainWindow.displayFpsMeter.ResetFpsCounters();
+            Visualizer.fpsMeter.ResetFpsCounters();
+            AllowValueSet = true;
         }
 
         private void UndoButton_Click(object sender, RoutedEventArgs e)
@@ -258,41 +462,47 @@ namespace FreqFreak
 
         private void ImportButton_Click(object sender, RoutedEventArgs e)
         {
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            //Visualizer._captureCTS.Cancel();
+            _optionsDispatcher.BeginInvoke(() =>
             {
-                Filter = "JSON files (*.json)|*.json",
-                DefaultExt = ".json",
-                AddExtension = true
-            };
-            if (openFileDialog.ShowDialog() == true)
-            {
-                // Load the Visualizer.InstanceOptions from the selected file
-                string json = System.IO.File.ReadAllText(openFileDialog.FileName);
-                var options = JsonConvert.DeserializeObject<Settings>(json);
-                if (options != null)
+                var openFileDialog = new Microsoft.Win32.OpenFileDialog
                 {
-                    AllowValueSet = false;
-                    if (options._fftSize != Visualizer.InstanceOptions._fftSize)
+                    Filter = "JSON files (*.json)|*.json",
+                    DefaultExt = ".json",
+                    AddExtension = true
+                };
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    // Load the Visualizer.InstanceOptions from the selected file
+                    string json = System.IO.File.ReadAllText(openFileDialog.FileName);
+                    var options = JsonConvert.DeserializeObject<Settings>(json);
+                    if (options != null)
                     {
-                        Visualizer._captureCTS.Cancel();
-                        Visualizer._captureCTS = new();
-                        Visualizer.InstanceOptions._fftSize = options._fftSize;
-                        var _captureThread = new Thread(() =>
+                        AllowValueSet = false;
+                        if (options._fftSize != Visualizer.InstanceOptions._fftSize)
                         {
-                            Visualizer.StartCapture(Visualizer._captureCTS.Token);
-                        });
-                        _captureThread.Start();
+                            Visualizer._captureCTS.Cancel();
+                            Visualizer._captureCTS = new();
+                            Visualizer.InstanceOptions._fftSize = options._fftSize;
+                            var _captureThread = new Thread(() =>
+                            {
+                                Visualizer.StartCapture(Visualizer._captureCTS.Token);
+                            });
+                            _captureThread.Start();
+                        }
+                        Visualizer.InstanceOptions = options;
+                        Visualizer.UpdateSettings = true;
+                        ResetMenu();
+                        AllowValueSet = true;
                     }
-                    Visualizer.InstanceOptions = options;
-                    Visualizer.UpdateSettings = true;
-                    ResetMenu();
-                    AllowValueSet = true;
+                    else
+                    {
+                        MessageBox.Show("Failed to load settings from file.");
+                    }
                 }
-                else
-                {
-                    MessageBox.Show("Failed to load settings from file.");
-                }
-            }
+                //Visualizer._captureCTS = new CancellationTokenSource();
+                //_ = Task.Run(() => Visualizer.StartCapture(Visualizer._captureCTS.Token), Visualizer._captureCTS.Token);
+            });
         }
 
         private void SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -302,15 +512,75 @@ namespace FreqFreak
 
         private void BarColorTypeInput_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (!AllowValueSet) return;
             int idx = BarColorTypeInput.SelectedIndex;
-            int idx2 = PeakColorTypeInput.SelectedIndex;
-            Visualizer.InstanceOptions._barColorType = idx;
-            Visualizer.InstanceOptions._peakColorType = idx2;
-            
+            int idx2 = PeakColorTypeInput.SelectedIndex - 1;
+            Visualizer.InstanceOptions._barColorType = (ColorMode)idx;
+            Visualizer.InstanceOptions._peakColorType = (ColorMode)idx2;
+
+            if(((ComboBoxItem)PeakColorTypeInput.SelectedItem).Content as string == "Match Bars")
+            {
+                Visualizer.InstanceOptions._peakColorType = ColorMode.Match;
+            }
+
+            if (Visualizer.InstanceOptions._barColorType == ColorMode.GradientVertical || Visualizer.InstanceOptions._barColorType == ColorMode.GradientHorizontal
+                || Visualizer.InstanceOptions._barColorType == ColorMode.GradientHeight || Visualizer.InstanceOptions._barColorType == ColorMode.GradientPitch || Visualizer.InstanceOptions._barColorType == ColorMode.GradientFrequency)
+            {
+                BarColorOne.Visibility = Visibility.Collapsed;
+                BarColorTwo.Visibility = Visibility.Collapsed;
+                ColorOneLabel.Visibility = Visibility.Collapsed;
+                ColorTwoLabel.Visibility = Visibility.Collapsed;
+                SwapButton.Visibility = Visibility.Collapsed;
+
+                GradientEditButton.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                BarColorOne.Visibility = Visibility.Visible;
+                BarColorTwo.Visibility = Visibility.Visible;
+                ColorOneLabel.Visibility = Visibility.Visible;
+                ColorTwoLabel.Visibility = Visibility.Visible;
+                SwapButton.Visibility = Visibility.Visible;
+
+                GradientEditButton.Visibility = Visibility.Collapsed;
+            }
+            if (Visualizer.InstanceOptions._peakColorType == ColorMode.GradientVertical || Visualizer.InstanceOptions._peakColorType == ColorMode.GradientHorizontal
+                || Visualizer.InstanceOptions._peakColorType == ColorMode.GradientHeight || Visualizer.InstanceOptions._peakColorType == ColorMode.GradientPitch || Visualizer.InstanceOptions._peakColorType == ColorMode.GradientFrequency)
+            {
+                PeakColor.Visibility = Visibility.Collapsed;
+                PeakColorTwo.Visibility = Visibility.Collapsed;
+                ColorThreeLabel.Visibility = Visibility.Collapsed;
+                ColorFourLabel.Visibility = Visibility.Collapsed;
+                PeakSwapButton.Visibility = Visibility.Collapsed;
+
+                PeakGradientEditButton.Visibility = Visibility.Visible;
+            }
+            else if (Visualizer.InstanceOptions._peakColorType == ColorMode.Match)
+            {
+                PeakColor.Visibility = Visibility.Collapsed;
+                PeakColorTwo.Visibility = Visibility.Collapsed;
+                ColorThreeLabel.Visibility = Visibility.Collapsed;
+                ColorFourLabel.Visibility = Visibility.Collapsed;
+                PeakSwapButton.Visibility = Visibility.Collapsed;
+
+                PeakGradientEditButton.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                PeakColor.Visibility = Visibility.Visible;
+                PeakColorTwo.Visibility = Visibility.Visible;
+                ColorThreeLabel.Visibility = Visibility.Visible;
+                ColorFourLabel.Visibility = Visibility.Visible;
+                PeakSwapButton.Visibility = Visibility.Visible;
+
+                PeakGradientEditButton.Visibility = Visibility.Collapsed;
+            }
+
             Visualizer.UpdateSettings = true;
         }
         private void ShowPeaksInput_Click(object sender, RoutedEventArgs e)
         {
+            if (!AllowValueSet) return;
             Visualizer.InstanceOptions._showPeaks = ShowPeaksInput.IsChecked.Value;
         }
 
@@ -334,7 +604,8 @@ namespace FreqFreak
 
         private void NoMovement_Click(object sender, RoutedEventArgs e)
         {
-            if(LeftMovement.IsChecked.Value)
+            if (!AllowValueSet) return;
+            if (LeftMovement.IsChecked.Value)
             {
                 Visualizer.InstanceOptions._rotateColor = 1;
             }
@@ -350,6 +621,7 @@ namespace FreqFreak
 
         private void SpectrogramInput_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (!AllowValueSet) return;
             string selectedItem = (string)((ComboBoxItem)SpectrogramInput.SelectedItem).Content;
 
             if (Enum.TryParse(typeof(ScaleMode), selectedItem, out object result))
@@ -360,25 +632,18 @@ namespace FreqFreak
 
         private void AudioDevicesButton_Click(object sender, RoutedEventArgs e)
         {
-            if (Visualizer.AudioDevicesWindow == null)
-            {
-                Visualizer.AudioDevicesWindow = new();
-                Visualizer.AudioDevicesWindow.Show();
-            }
-            else if (!Visualizer.AudioDevicesWindow.IsVisible)
-            {
-                Visualizer.AudioDevicesWindow = new();
-                Visualizer.AudioDevicesWindow.Show();
-            }
+            Visualizer.MainWin.CreateNewAudioWindow();
         }
 
         private void InvertSpectrum_Click(object sender, RoutedEventArgs e)
         {
+            if (!AllowValueSet) return;
             Visualizer.InstanceOptions._invertSpectrum = InvertSpectrum.IsChecked.Value;
         }
 
         private void PreviewInput_Click(object sender, RoutedEventArgs e)
         {
+            if (!AllowValueSet) return;
             Visualizer.ShowBg = !PreviewInput.IsChecked.Value;
             Visualizer.ChangeBg = true;
         }
@@ -392,30 +657,27 @@ namespace FreqFreak
             var ticlr = Color.FromArgb((byte)TrayIconColor.Color.A, (byte)TrayIconColor.Color.RGB_R, (byte)TrayIconColor.Color.RGB_G, (byte)TrayIconColor.Color.RGB_B);
 
             MainWindow._TrayIconColor = ticlr;
-            MainWindow.FVZWindowHandle.SetAccentColor();
+            if(MainWindow.FVZWindowHandle != null)
+            {
+                MainWindow.FVZWindowHandle.SetAccentColor();
+            }
             Visualizer.UpdateSettings = true;
             MainWindow.HueShiftIcon();
         }
 
         private void FVZButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!MainWindow.FVZMode)
-            {
-                MainWindow.FVZWindowHandle = new FVZWindow();
-                MainWindow.FVZWindowHandle.Show();
-                MainWindow.FVZMode = true;
-            }
-            else
-            {
-                MainWindow.FVZWindowHandle.Hide();
-                FVZPlayer.Stop();
-                MainWindow.FVZMode = false;
-            }
+            Visualizer.MainWin.CreateNewFVZWindow();
         }
 
         private void OnTopInput_Click(object sender, RoutedEventArgs e)
         {
-            Visualizer.MainWin.Topmost = OnTopInput.IsChecked.Value;
+            if (!AllowValueSet) return;
+            var check = OnTopInput.IsChecked.Value;
+            Visualizer.MainWin.Dispatcher.BeginInvoke(() =>
+            {
+                Visualizer.MainWin.Topmost = check;
+            });
         }
 
         private void SwapButton_Click(object sender, RoutedEventArgs e)
@@ -430,6 +692,223 @@ namespace FreqFreak
             var temp = PeakColor.SelectedColor;
             PeakColor.SelectedColor = PeakColorTwo.SelectedColor;
             PeakColorTwo.SelectedColor = temp;
+        }
+
+        private void AudioChannelInput_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!AllowValueSet) return;
+            Visualizer.InstanceOptions._channelMode = (ChannelMode)AudioChannelInput.SelectedIndex;
+            var curMode = PosInput.Text;
+            if (Visualizer.InstanceOptions._channelMode == ChannelMode.Stereo)
+            {
+                if (curMode != "Center" && curMode != "Oscilloscope" && curMode != "InnerCircle" && curMode != "OuterCircle")
+                {
+                    PosInput.Text = "Center";
+                }
+                else
+                {
+                    PosInput.Text = curMode;
+                }
+            }
+            else
+            {
+                if (curMode == "Oscilloscope")
+                {
+                    PosInput.Text = "Bottom";
+                }
+                else
+                {
+                    PosInput.Text = curMode;
+                }
+            }
+            Visualizer.UpdateSettings = true;
+        }
+
+        private void CenterlineInput_Click(object sender, RoutedEventArgs e)
+        {
+            var checkd = CenterlineInput.IsChecked.Value;
+            Visualizer.MainWin.Dispatcher.BeginInvoke(() =>
+            {
+                Visualizer.MainWin.CenterLine.Visibility = checkd ? Visibility.Visible : Visibility.Collapsed;
+
+            });
+        }
+
+        private void GradientEditButton_Click(object sender, RoutedEventArgs e)
+        {
+            Visualizer.MainWin.CreateNewGradientEditorWindow(false);
+        }
+
+        private void PeakGradientEditButton_Click(object sender, RoutedEventArgs e)
+        {
+            Visualizer.MainWin.CreateNewGradientEditorWindow(true);
+        }
+
+        private void Grid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            double width = HeaderCutoutGrid.ActualWidth;
+            double height = HeaderCutoutGrid.ActualHeight;
+            double radius = 10;
+
+            var outer = new RectangleGeometry(new Rect(0, 0, width, height));
+            var inner = new RectangleGeometry(new Rect(10, 2, width - 20, 35), radius, radius);
+
+            var combined = new CombinedGeometry(GeometryCombineMode.Exclude, outer, inner);
+            HeaderCutoutGrid.Clip = combined;
+        }
+
+        // Window re-management
+        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            //var offset = e.GetPosition(this);
+            //DragWorkaround.StartDragging(this, offset);
+            dragHandler.BeginDrag(e);
+        }
+
+        private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            dragHandler.EndDrag();
+        }
+
+        // Resize helper
+        private Point _dragStart;
+        private Rect _startRect;
+
+        private void Resize_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (Mouse.Capture(sender as IInputElement))
+            {
+                _dragStart = PointToScreen(e.GetPosition(this));
+                _startRect = new Rect(Left, Top, ActualWidth, ActualHeight);
+                MouseMove += OnResizeMouseMove;
+                MouseLeftButtonUp += OnResizeMouseLeftButtonUp;
+                WindowBorder.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 200, 200, 200));
+            }
+        }
+        Color[] rainbow = new Color[]
+                        {
+                        Color.FromArgb(255, 255, 0, 255),    // A# - Purple
+                        Color.FromArgb(255, 128, 0, 255),    // A  - Blue-Purple
+                        Color.FromArgb(255, 0,   0, 255),    // G# - Blue
+                        Color.FromArgb(255, 0, 128, 255),    // G  - Cyan-Blue
+                        Color.FromArgb(255, 0, 255, 255),    // F# - Cyan
+                        Color.FromArgb(255, 0, 255, 128),    // F  - Green-Cyan
+                        Color.FromArgb(255,   0, 255, 0),    // E  - Green
+                        Color.FromArgb(255, 128, 255, 0),    // D# - Yellow-Green
+                        Color.FromArgb(255, 255, 255, 0),    // D  - Yellow
+                        Color.FromArgb(255, 255, 128, 0),    // C# - Red-Orange
+                        Color.FromArgb(255, 255,   0, 0),    // C  - Red
+                        };
+        private void OnResizeMouseMove(object? o, MouseEventArgs e)
+        {
+            _optionsDispatcher.BeginInvoke(() =>
+            {
+                Point current = PointToScreen(e.GetPosition(this));
+                Vector delta = current - _dragStart;
+
+                // Which edge are we dragging?
+                FrameworkElement fe = (FrameworkElement)Mouse.Captured;
+                if(fe == null)
+                {
+                    return;
+                }
+
+                bool left = fe.Name.Contains("Left");
+                bool right = fe.Name.Contains("Right");
+                bool top = fe.Name.Contains("Top");
+                bool bottom = fe.Name.Contains("Bottom");
+
+                Rect r = _startRect;
+
+                if (left) { r.X += delta.X; r.Width -= delta.X; }
+                if (right) { r.Width += delta.X; }
+                if (top) { r.Y += delta.Y; r.Height -= delta.Y; }
+                if (bottom) { r.Height += delta.Y; }
+
+                // Don't let it get negative
+                if (r.Width > MinWidth)
+                {
+                    Left = r.X;
+                    Width = r.Width;
+                }
+                else
+                {
+                    r.Width = MinWidth;
+                    Left = r.X;
+                    Width = r.Width;
+                }
+
+                if (r.Height > MinHeight) { Top = r.Y; Height = r.Height; }
+
+
+                WindowBorder.BorderBrush = new SolidColorBrush(Visualizer.GetGradientColor(rainbow, ((1000000 - (r.Width * r.Height)) / 550000)));
+            });
+        }
+        private void OnResizeMouseLeftButtonUp(object? o, MouseButtonEventArgs e)
+        {
+            MouseMove -= OnResizeMouseMove;
+            MouseLeftButtonUp -= OnResizeMouseLeftButtonUp;
+            Mouse.Capture(null);
+            WindowBorder.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 126, 126, 126));
+        }
+
+        private void Minimize_Click(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = WindowState.Minimized;
+        }
+
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+
+        private void NewInstance_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start("FreqFreak.exe");
+        }
+
+        private void PlayPauseButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (Visualizer._captureCTS.IsCancellationRequested)
+            {
+                Visualizer._captureCTS = new CancellationTokenSource();
+                _ = Task.Run(() => Visualizer.StartCapture(Visualizer._captureCTS.Token), Visualizer._captureCTS.Token);
+                Visualizer.MainWin.toggleVis.Text = "Pause Visualizer";
+                ((Path)PlayPauseButton.Content).Data = Geometry.Parse("F1 M 6.25 2.5 L 7.5 2.5 L 7.5 17.5 L 6.25 17.5 Z M 13.75 2.5 L 13.75 17.5 L 12.5 17.5 L 12.5 2.5 Z ");
+            }
+            else
+            {
+                Visualizer._captureCTS.Cancel();
+                Visualizer.MainWin.toggleVis.Text = "Resume Visualizer";
+                ((Path)PlayPauseButton.Content).Data = Geometry.Parse("F1 M 17.5 10 L 5 18.75 L 5 1.25 Z M 6.25 16.347656 L 15.322266 10 L 6.25 3.652344 Z ");
+            }
+        }
+
+        private void LinesInput_Click(object sender, RoutedEventArgs e)
+        {
+            if (!AllowValueSet) return;
+            Visualizer.InstanceOptions._showLines = LinesInput.IsChecked.Value;
+            MainWindow._lineSwiitch = !LinesInput.IsChecked.Value;
+        }
+
+        private void RecenterButton_Click(object sender, RoutedEventArgs e)
+        {
+            var midH = this.Top + (this.ActualHeight / 2);
+
+            var midW = this.Left + (this.ActualWidth / 2);
+
+            Visualizer.MainWin.Dispatcher.Invoke(() =>
+            {
+                var newMidH = midH - (Visualizer.MainWin.Height / 2);
+                var newMidW = midW - (Visualizer.MainWin.Width / 2);
+                Visualizer.MainWin.Left = newMidW;
+                Visualizer.MainWin.Top = newMidH;
+            });
+        }
+
+        private void PhotoButton_Click(object sender, RoutedEventArgs e)
+        {
+            Visualizer.MainWin.CreateNewPhotoCutoutWindow();
         }
     }
 }

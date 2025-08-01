@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Platforms>AnyCPU;x86</Platforms>
+    <Platforms>AnyCPU;x86;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -41,27 +41,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="NAudio">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Asio">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.Asio.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Core">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Midi">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.Midi.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Wasapi">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.Wasapi.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.WinForms">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.WinForms.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.WinMM">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.WinMM.dll</HintPath>
-    </Reference>
+    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll" />
   </ItemGroup>
 
   <ItemGroup>
@@ -69,21 +57,48 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll">
+    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
+    <None Remove="Images\icon.png" />
+    <None Remove="Images\icon2.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\icon2.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
+    <Reference Include="LibMaterial.NET">
+      <HintPath>C:\Users\jhset\Desktop\LibMaterial-main\.NET\bin\Release\net6.0-windows\LibMaterial.NET.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Asio">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.Asio.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Core">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Midi">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.Midi.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Wasapi">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.Wasapi.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.WinForms">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.WinForms.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.WinMM">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.WinMM.dll</HintPath>
+    </Reference>
   </ItemGroup>
 	
 </Project>

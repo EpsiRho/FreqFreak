@@ -18,10 +18,14 @@ namespace FreqFreak
         public static CancellationTokenSource _fftCTS = new();
         public static MainWindow MainWin = null;
         public static OptionsWindow OptionsWindow;
+        public static GradientEditor EditorWindow;
         public static AudioDevices AudioDevicesWindow;
+        public static PhotoCutout PhotoCutoutWindow;
+        public static List<StupidTuple> CutoutWindows = new();
         public static bool ChangeBg;
         public static bool ShowBg;
         public static bool UpdateSettings;
+        public static bool UpdatePeaks;
         public static List<string> GetOutputDevices()
         {
             var devices = new MMDeviceEnumerator()
@@ -107,10 +111,15 @@ namespace FreqFreak
         public static WaveFormat _CaptureFormat;       
         public static WasapiCapture _inputCapture;     
         public static ConcurrentQueue<double[]> _frameQueue = new(); // Frame Queue, each frame of frequency ranges to show
+        public static ConcurrentQueue<double[]> _frameQueueRight = new(); // Frame Queue, each frame of frequency ranges to show
+        public static ConcurrentQueue<double[]> _frameEdgeQueue = new(); // Frame Edges Queue, used for Pitch Tracking to calculate the current frame's bin centers.
 
         public static CircularBuffer<double> _samples = new CircularBuffer<double>(1);                                     // Samples obtained from WASAPI
+        public static CircularBuffer<double> _samplesRight = new CircularBuffer<double>(1);                                // Samples obtained from WASAPI, for Stereo Mode Visualizations
         public static System.Numerics.Complex[] _spectrum = new System.Numerics.Complex[InstanceOptions._fftSize];  // Frequency Spectrumn, unbinned
+        public static System.Numerics.Complex[] _spectrumRight = new System.Numerics.Complex[InstanceOptions._fftSize];  // Frequency Spectrumn, unbinned
         public static double[] _magnitudes = new double[InstanceOptions._fftSize / 2];                              // Sample magnitudes
+        public static double[] _magnitudesRight = new double[InstanceOptions._fftSize / 2];                              // Sample magnitudes
         public static FftSharp.Windows.Hanning _window = new();                                                     // Windowing object from FftSharp
 
         public static double _maxMagnitude = 0;
@@ -128,6 +137,7 @@ namespace FreqFreak
                 InstanceOptions = new Settings();
             }
             _samples = new CircularBuffer<double>(InstanceOptions._fftSize);
+            _samplesRight = new CircularBuffer<double>(InstanceOptions._fftSize);
 
             // Checking if this is an input device or an output device
             if (!isInput)
@@ -233,37 +243,124 @@ namespace FreqFreak
                     tempBuffer.PushBack(e.Buffer[i]);
                 }
 
-                // Check if we have enough data
-                if (tempBuffer.Count() < bufferSizeInBytes)
+                if (InstanceOptions._visualizationMode == VisualizationMode.Oscilloscope)
                 {
-                    return;
+                    ProcessOscilloscopeMode(fmt, bufferSizeInBytes, samplesNeeded);
                 }
+                else
+                {
 
-                // Extract bytes from the ring buffer
-                byte[] buffer = new byte[bufferSizeInBytes];
-                int idx = 0;
-                foreach (var b in tempBuffer)
-                {
-                    buffer[idx++] = b;
-                    if (idx >= bufferSizeInBytes) break;
-                }
+                    // Check if we have enough data
+                    if (tempBuffer.Count() < bufferSizeInBytes)
+                    {
+                        return;
+                    }
 
-                // Process bytes into samples
-                if (fmt.Encoding == WaveFormatEncoding.IeeeFloat ||
-                    (fmt.Encoding == WaveFormatEncoding.Extensible &&
-                     ((WaveFormatExtensible)fmt).SubFormat == AudioMediaSubtypes.MEDIASUBTYPE_IEEE_FLOAT))
-                {
-                    ProcessFloatData(buffer, bufferSizeInBytes, fmt, samplesNeeded);
-                }
-                else if (fmt.Encoding == WaveFormatEncoding.Pcm && fmt.BitsPerSample == 16)
-                {
-                    ProcessPcm16Data(buffer, bufferSizeInBytes, fmt, samplesNeeded);
+                    // Extract bytes from the ring buffer
+                    byte[] buffer = new byte[bufferSizeInBytes];
+                    int idx = 0;
+                    foreach (var b in tempBuffer)
+                    {
+                        buffer[idx++] = b;
+                        if (idx >= bufferSizeInBytes) break;
+                    }
+
+                    // Process bytes into samples
+                    if (fmt.Encoding == WaveFormatEncoding.IeeeFloat ||
+                        (fmt.Encoding == WaveFormatEncoding.Extensible &&
+                         ((WaveFormatExtensible)fmt).SubFormat == AudioMediaSubtypes.MEDIASUBTYPE_IEEE_FLOAT))
+                    {
+                        ProcessFloatData(buffer, bufferSizeInBytes, fmt, samplesNeeded);
+                    }
+                    else if (fmt.Encoding == WaveFormatEncoding.Pcm && fmt.BitsPerSample == 16)
+                    {
+                        ProcessPcm16Data(buffer, bufferSizeInBytes, fmt, samplesNeeded);
+                    }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 
             }
+        }
+        public static Queue<(float L, float R)> _oscilloscopeBuffer = new Queue<(float, float)>();
+        private static int _oscilloscopeFrameSize = 512;
+        private static readonly object _oscilloscopeBufferLock = new object();
+
+        private static void ProcessOscilloscopeMode(WaveFormat fmt, int bufferSizeInBytes, int samplesNeeded)
+        {
+            // Extract current buffer as samples
+            if (tempBuffer.Count() < bufferSizeInBytes)
+                return;
+
+            byte[] buffer = new byte[bufferSizeInBytes];
+            int idx = 0;
+            foreach (var b in tempBuffer)
+            {
+                buffer[idx++] = b;
+                if (idx >= bufferSizeInBytes) break;
+            }
+
+            // Convert to samples and add to oscilloscope buffer
+            var samples = ConvertToStereoSamples(buffer, fmt);
+
+            lock (_oscilloscopeBufferLock)
+            {
+                foreach (var sample in samples)
+                {
+                    _oscilloscopeBuffer.Enqueue(sample);
+                }
+
+                //while (_oscilloscopeBuffer.Count >= _oscilloscopeFrameSize)
+                //{
+                //    var frameL = new double[_oscilloscopeFrameSize];
+                //    var frameR = new double[_oscilloscopeFrameSize];
+
+                //    for (int i = 0; i < _oscilloscopeFrameSize; i++)
+                //    {
+                //        var sample = _oscilloscopeBuffer.Dequeue(); // Remove used samples
+                //        frameL[i] = sample.L;
+                //        frameR[i] = sample.R;
+                //    }
+
+                //    MainWin.Dispatcher.BeginInvoke(() => {
+                //        MainWin.OscView?.UpdatePlane(frameL, frameR);
+                //    });
+                //}
+            }
+        }
+
+        private static (float L, float R)[] ConvertToStereoSamples(byte[] buffer, WaveFormat fmt)
+        {
+            var samples = new List<(float L, float R)>();
+
+            if (fmt.Encoding == WaveFormatEncoding.IeeeFloat)
+            {
+                for (int i = 0; i < buffer.Length - 7; i += 8) // 4 bytes per float * 2 channels
+                {
+                    float left = BitConverter.ToSingle(buffer, i);
+                    float right = BitConverter.ToSingle(buffer, i + 4);
+
+                    // DO NOT CLAMP - preserve full range
+                    samples.Add((left, right));
+                }
+            }
+            else if (fmt.Encoding == WaveFormatEncoding.Pcm && fmt.BitsPerSample == 16)
+            {
+                for (int i = 0; i < buffer.Length - 3; i += 4) // 2 bytes per sample * 2 channels
+                {
+                    short leftInt = BitConverter.ToInt16(buffer, i);
+                    short rightInt = BitConverter.ToInt16(buffer, i + 2);
+
+                    // Convert to float WITHOUT limiting range
+                    float left = leftInt / 32768.0f;
+                    float right = rightInt / 32768.0f;
+
+                    samples.Add((left, right));
+                }
+            }
+
+            return samples.ToArray();
         }
         private static void ProcessFloatData(byte[] buffer, int bytesRecorded, WaveFormat fmt, int needed)
         {
@@ -272,14 +369,47 @@ namespace FreqFreak
 
             if (channels == 2)
             {
-                // Stereo
-                for (int n = 0; n < needed; n++)
+                if (InstanceOptions._channelMode == ChannelMode.Mono)
                 {
-                    int i = n * 2;
-                    _samples.PushBack((span[i] + span[i + 1]) * 0.5f);
+                    // Stereo -> mono combined
+                    var piss = 0;
+                    for (int n = 0; n < needed; n++)
+                    {
+                        int i = n * 2;
+                        _samples.PushBack((span[i] + span[i + 1]) * 0.5f);
+                    }
+                }
+                else if (InstanceOptions._channelMode == ChannelMode.StereoLeft)
+                {
+                    // Stereo -> mono left
+                    for (int n = 0; n < needed; n++)
+                    {
+                        int i = n * 2;
+                        _samples.PushBack(span[i]); // Left channel
+                    }
+                }
+                else if (InstanceOptions._channelMode == ChannelMode.StereoRight)
+                {
+                    // Stereo -> mono right
+                    for (int n = 0; n < needed; n++)
+                    {
+                        int i = n * 2 + 1;
+                        _samples.PushBack(span[i]); // Right channel
+                    }
+                }
+                else if (InstanceOptions._channelMode == ChannelMode.Stereo)
+                {
+                    // We'll fill up a second array with right side samples, _smaplesRight
+                    for (int n = 0; n < needed; n++)
+                    {
+                        int i = n * 2;
+                        _samples.PushBack(span[i]); // Left channel
+                        _samplesRight.PushBack(span[i + 1]); // Right channel
+                    }
+
                 }
             }
-            else
+            else if (channels == 1)
             {
                 // Mono
                 for (int n = 0; n < needed - 1; n++)
@@ -299,14 +429,47 @@ namespace FreqFreak
 
             if (channels == 2)
             {
-                // Stereo
-                for (int n = 0; n < needed; n++)
+
+                if (InstanceOptions._channelMode == ChannelMode.Mono)
                 {
-                    int i = n * 2;
-                    _samples.PushBack(((span[i] + span[i + 1]) * 0.5f) * scale);
+                    // Stereo -> mono combined
+                    for (int n = 0; n < needed; n++)
+                    {
+                        int i = n * 2;
+                        _samples.PushBack(((span[i] + span[i + 1]) * 0.5f) * scale);
+                    }
+                }
+                else if (InstanceOptions._channelMode == ChannelMode.StereoLeft)
+                {
+                    // Stereo -> mono left
+                    for (int n = 0; n < needed; n++)
+                    {
+                        int i = n * 2;
+                        _samples.PushBack(span[i] * scale); // Left channel
+                    }
+                }
+                else if (InstanceOptions._channelMode == ChannelMode.StereoRight)
+                {
+                    // Stereo -> mono right
+                    for (int n = 0; n < needed; n++)
+                    {
+                        int i = n * 2 + 1;
+                        _samples.PushBack(span[i] * scale); // Right channel
+                    }
+                }
+                else if (InstanceOptions._channelMode == ChannelMode.Stereo)
+                {
+                    // We'll fill up a second array with right side samples, _smaplesRight
+                    for (int n = 0; n < needed; n++)
+                    {
+                        int i = n * 2;
+                        _samples.PushBack(span[i] * scale); // Left channel
+                        _samplesRight.PushBack(span[i + 1] * scale); // Right channel
+                    }
+
                 }
             }
-            else
+            else if (channels == 1)
             {
                 // Mono
                 for (int n = 0; n < needed; n++)
@@ -321,53 +484,91 @@ namespace FreqFreak
             int sampleRate = _CaptureFormat.SampleRate;
             while (!_fftCTS.IsCancellationRequested)
             {
-                fpsMeter.StartFpsCounter();
+                fpsMeter.Tick();
                 if (!_samples.IsFull || _samples.IsEmpty || MainWindow.FVZMode)
                 {
-                    fpsMeter.StopFpsCounter();
+                    continue;
+                }
+                if(!_samplesRight.IsEmpty && !_samples.IsFull)
+                {
                     continue;
                 }
                 try
                 {
-                    // Apply window function using FFTSharp
-                    var slice = _samples.ToArray();
-                    _window.ApplyInPlace(slice);
+                    if (_samplesRight.IsFull)
+                    {
+                        // FFT processing using FFTSharp
+                        var slice = _samples.ToArray();
+                        var sliceRight = _samplesRight.ToArray();
 
-                    // FFT processing using FFTSharp
-                    _spectrum = FFT.Forward(slice);
-                    _magnitudes = FFT.Magnitude(_spectrum);
+                        _window.ApplyInPlace(slice);
+                        _spectrum = FFT.Forward(slice);
+                        _magnitudes = FFT.Magnitude(_spectrum);
 
-                    // Build frame with current scale mode
-                    BuildFrame(_magnitudes, sampleRate);
+                        _window.ApplyInPlace(sliceRight);
+                        _spectrumRight = FFT.Forward(sliceRight);
+                        _magnitudesRight = FFT.Magnitude(_spectrumRight);
+                        
+
+                        // Build frame with current scale mode
+                        Task.Run(() => BuildFrame(_magnitudes, sampleRate, false)); // Process left channel
+                        Task.Run(() => BuildFrame(_magnitudesRight, sampleRate, true)); // Process right channel
+                    }
+                    else
+                    {
+                        // Apply window function using FFTSharp
+                        var slice = _samples.ToArray();
+                        _window.ApplyInPlace(slice);
+
+                        // FFT processing using FFTSharp
+                        _spectrum = FFT.Forward(slice);
+                        _magnitudes = FFT.Magnitude(_spectrum);
+
+                        // Build frame with current scale mode
+                        BuildFrame(_magnitudes, sampleRate);
+                    }
                 }
                 catch (Exception)
                 {
 
                 }
-                fpsMeter.StopFpsCounter();
             }
         }
 
         // Frame Builder entry, routes to one of the builders below
-        public static void BuildFrame(double[] mags, int sampleRate)
+        public static void BuildFrame(double[] mags, int sampleRate, bool stereoRight = false)
         {
-            switch (InstanceOptions._scaleMode)
+            if(InstanceOptions._visualizationMode == VisualizationMode.Oscilloscope)
             {
-                case ScaleMode.Mel:
-                    BuildFrameMel(mags, sampleRate);
-                    break;
-                case ScaleMode.Normalized:
-                    BuildFrameNormalized(mags, sampleRate);
-                    break;
-                default:
-                    BuildFrameLogNormalized(mags, sampleRate);
-                    break;
+
+            }
+            else
+            {
+                try
+                {
+                    switch (InstanceOptions._scaleMode)
+                    {
+                        case ScaleMode.Mel:
+                            BuildFrameMel(mags, sampleRate, stereoRight);
+                            break;
+                        case ScaleMode.Normalized:
+                            BuildFrameNormalized(mags, sampleRate, stereoRight);
+                            break;
+                        default:
+                            BuildFrameLogNormalized(mags, sampleRate, stereoRight);
+                            break;
+                    }
+                }
+                catch (Exception)
+                {
+
+                }
             }
         }
 
 
-        // Frame Builder Part 1, Logarithmic
-        private static void BuildFrameNormalized(double[] mags, int sampleRate)
+        // Frame Builder Part 1
+        private static void BuildFrameNormalized(double[] mags, int sampleRate, bool stereoRight = false)
         {
             // Preparing Variables
             double fMin = InstanceOptions._fMin;
@@ -408,6 +609,10 @@ namespace FreqFreak
                 if (k < 0) k = ~k - 1; // BinarySearch peculiarity
 
                 double l = edges[k];
+                if(edges.Length <= k + 1)
+                {
+                    return;
+                }
                 double rEdge = edges[k + 1];
                 double t = (f - l) / (rEdge - l); // 0->1 position between the two edges
 
@@ -444,8 +649,8 @@ namespace FreqFreak
 
                 // Apply gain compensation as frequency increases (so high ends don't get washed)
                 double t = r / (double)(rows - 1);
-                //double comp = double.Lerp(1.2, 1.1, t);
-                //dbNorm /= comp;
+                double comp = double.Lerp(1.17, 1.05, t);
+                dbNorm /= comp;
 
                 // Use Soft Gate to gate out noise and an exponential smoothstep to smooth out the missing cliff
                 frame[r] = Math.Clamp(ApplySoftGate(dbNorm, t), 0, 1);
@@ -478,8 +683,18 @@ namespace FreqFreak
 
             // Now this frame is done and ready to be shown by the visualizer, so it's chucked into a ConcurrentQueue
             // I also check to make sure the UI isn't lagging too far behind by not letting the buffer get overfilled
-            _frameQueue.Enqueue(smoothed);
-            while (_frameQueue.Count > 13) _frameQueue.TryDequeue(out _);
+            if (stereoRight)
+            {
+                _frameQueueRight.Enqueue(smoothed);
+                while (_frameQueueRight.Count > 13) _frameQueueRight.TryDequeue(out _);
+            }
+            else
+            {
+                _frameQueue.Enqueue(smoothed);
+                while (_frameQueue.Count > 13) _frameQueue.TryDequeue(out _);
+            }
+            _frameEdgeQueue.Enqueue(edges);
+            while (_frameEdgeQueue.Count > 13) _frameEdgeQueue.TryDequeue(out _);
         }
         static double TriEase(double t, double lowMid = 0.3, double highMid = 0.7)
         {
@@ -565,7 +780,7 @@ namespace FreqFreak
 
 
         // Frame Builder Part 2, Melectric Boogaloo
-        private static void BuildFrameMel(double[] mags, int sampleRate)
+        private static void BuildFrameMel(double[] mags, int sampleRate, bool stereoRight = false)
         {
             double fMin = InstanceOptions._fMin;
             double fMax = InstanceOptions._fMax == -1 ? sampleRate / 2.0 : InstanceOptions._fMax;
@@ -639,13 +854,23 @@ namespace FreqFreak
                 smoothed[r] = (sum / cnt);
             }
 
-            _frameQueue.Enqueue(smoothed);
-            while (_frameQueue.Count > 3) _frameQueue.TryDequeue(out _);
+            if (stereoRight)
+            {
+                _frameQueueRight.Enqueue(smoothed);
+                while (_frameQueueRight.Count > 13) _frameQueueRight.TryDequeue(out _);
+            }
+            else
+            {
+                _frameQueue.Enqueue(smoothed);
+                while (_frameQueue.Count > 13) _frameQueue.TryDequeue(out _);
+            }
+            _frameEdgeQueue.Enqueue(melEdges);
+            while (_frameEdgeQueue.Count > 13) _frameEdgeQueue.TryDequeue(out _);
         }
 
 
         // Frame Builder Part 3, Log10
-        private static void BuildFrameLogNormalized(double[] mags, int sampleRate)
+        private static void BuildFrameLogNormalized(double[] mags, int sampleRate, bool stereoRight = false)
         {
             // Preparing Variables
             double fMin = InstanceOptions._fMin;
@@ -743,38 +968,87 @@ namespace FreqFreak
 
             // Now this frame is done and ready to be shown by the visualizer, so it's chucked into a ConcurrentQueue
             // I also check to make sure the UI isn't lagging too far behind by not letting the buffer get overfilled
-            _frameQueue.Enqueue(smoothed);
-            while (_frameQueue.Count > 13) _frameQueue.TryDequeue(out _);
+            if (stereoRight)
+            {
+                _frameQueueRight.Enqueue(smoothed);
+                while (_frameQueueRight.Count > 13) _frameQueueRight.TryDequeue(out _);
+            }
+            else
+            {
+                _frameQueue.Enqueue(smoothed);
+                while (_frameQueue.Count > 13) _frameQueue.TryDequeue(out _);
+            }
+            _frameEdgeQueue.Enqueue(edges);
+            while (_frameEdgeQueue.Count > 13) _frameEdgeQueue.TryDequeue(out _);
         }
 
 
 
-        public static List<double> GetFrame()
+        public static double[] GetFrame()
         {
             if (!_frameQueue.TryDequeue(out var frame))
             {
                 return null;
             }
 
+            return frame;
+
+        }
+        public static double[] GetFrameEdges()
+        {
+            if (!_frameEdgeQueue.TryDequeue(out var frame))
+            {
+                return null;
+            }
+
+            return frame;
+        }
+        public static (double[] L, double[] R) GetFrameStereo()
+        {
+            if (!_frameQueue.TryDequeue(out var frameL))
+            {
+                return (null, null);
+            }
+
+            if (!_frameQueueRight.TryDequeue(out var frameR))
+            {
+                return (null, null);
+            }
+
+            return (frameL, frameR);
+        }
+        public static (double[] L, double[] R) GetFrameRaw()
+        {
+            var slice = _samples.ToArray();
+            var sliceRight = _samplesRight.ToArray();
+
             try
             {
-                return new List<double>(frame);
+                return (slice, sliceRight);
             }
             catch (Exception)
             {
-                _frameQueue.Clear();
-                return null;
+                return (null, null);
             }
         }
         public static Color GetGradientColor(Color[] colors, double step)
         {
-            if (colors == null || colors.Length < 2)
-                throw new ArgumentException("At least two colors are required to create a gradient.");
+            if (colors == null || colors.Length == 0)
+            {
+                return Color.FromArgb(0,0,0,0);
+            }
+
+            if (colors.Length == 1)
+            {
+                return colors[0];
+            }
+
 
             if (step < 0.0 || step > 1.0)
-                step = Math.Clamp(step, 0.0, 1.0); // Handle out of range more gracefully
+            {
+                step = Math.Clamp(step, 0.0, 1.0);
+            }
 
-            // More efficient calculation
             int segmentCount = colors.Length - 1;
             double scaledStep = step * segmentCount;
             int lowerIndex = (int)Math.Floor(scaledStep);
@@ -782,11 +1056,9 @@ namespace FreqFreak
 
             double localStep = scaledStep - lowerIndex;
 
-            // Get the two colors to blend
             Color lowerColor = colors[lowerIndex];
             Color upperColor = colors[upperIndex];
 
-            // More efficient blending using byte arithmetic
             byte a = (byte)(lowerColor.A + (upperColor.A - lowerColor.A) * localStep);
             byte r = (byte)(lowerColor.R + (upperColor.R - lowerColor.R) * localStep);
             byte g = (byte)(lowerColor.G + (upperColor.G - lowerColor.G) * localStep);

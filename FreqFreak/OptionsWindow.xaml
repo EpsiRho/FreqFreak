@@ -6,26 +6,223 @@
         xmlns:local="clr-namespace:FreqFreak"
         xmlns:colorpicker="clr-namespace:ColorPicker;assembly=ColorPicker"
         mc:Ignorable="d"
-        Title="FreqFreak Options" Height="780" Width="600">
-    <Grid>
-        <ScrollViewer>
-            <StackPanel Orientation="Vertical" Margin="10,10,10,10">
-                <StackPanel Margin="0,0,0,10">
-                    <StackPanel Orientation="Horizontal">
-                        <Rectangle Width="4" Height="18" Margin="0,2,5,0" x:Name="FPSStatus"
-                                   Fill="Red" HorizontalAlignment="Left"/>
-                        <TextBlock x:Name="FPSMeter" Text="N/A" 
-                                   FontSize="16" HorizontalAlignment="Left"/>
-                        
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <Rectangle Width="4" Height="18" Margin="0,2,5,0" x:Name="FFTPSStatus"
-                                   Fill="Red" HorizontalAlignment="Left"/>
-                        <TextBlock x:Name="FFTPSMeter" Text="N/A" 
-                                   FontSize="16" HorizontalAlignment="Left"/>
+        Background="Transparent"
+        AllowsTransparency="True"
+        ResizeMode="CanResize"      
+        WindowStyle="None"
+        IsHitTestVisible="True"
+        Foreground="{DynamicResource ResourceKey=MainText}"
+        Title="FreqFreak Options" Height="890" Width="490" MinWidth="490">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/ColorPicker;component/Styles/DefaultColorPickerStyle.xaml" />
+            </ResourceDictionary.MergedDictionaries>
 
-                    </StackPanel>
-                </StackPanel>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid SizeChanged="Grid_SizeChanged" x:Name="MainGrid">
+
+        <!-- Window Title -->
+        <Grid Height="30"  
+              x:Name="TitleBar"
+              Background="{DynamicResource ResourceKey=TitleBg}"
+              VerticalAlignment="Top"
+              MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+              MouseLeftButtonUp="TitleBar_MouseLeftButtonUp">
+            <Image Source="/FreqFreak;component/Images/icon2.png"
+                   HorizontalAlignment="Left"
+                   Margin="5,1,0,2"/>
+            <TextBlock Text="FreqFreak Options"
+                       FontSize="16"
+                       Margin="35,4,0,0"/>
+
+            <StackPanel HorizontalAlignment="Right"
+                        Orientation="Horizontal">
+                <Button Width="40" 
+                        x:Name="MinimizeButton"
+                        Click="Minimize_Click"
+                        Style="{StaticResource TitleButtonStyle}">
+                    <Path Data="F1 M 20 7.5 L 20 10.498047 L 0 10.498047 L 0 7.5 Z " Fill="#7e7e7e" Stretch="Uniform" 
+                          Height="15" Width="15" Margin="0,4,0,0"/>
+                </Button>
+                <Button Width="40"
+                        x:Name="ExitButton"
+                        Click="ExitButton_Click"
+                        Style="{StaticResource TitleButtonStyle}">
+                    <Path Data="F1 M 19.814453 2.314453 L 12.119141 10 L 19.814453 17.685547 L 17.685547 19.814453 L 10 12.119141 L 2.314453 19.814453 L 0.185547 17.685547 L 7.880859 10 L 0.185547 2.314453 L 2.314453 0.185547 L 10 7.880859 L 17.685547 0.185547 Z " 
+                          Fill="#7e7e7e" Stretch="Uniform" Height="10" Width="10" Margin="0,2,0,0"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+        
+        <!-- Window Border -->
+        <Border BorderThickness="3"
+                x:Name="WindowBorder"
+                Margin="0,30,0,0"
+                Panel.ZIndex="5"
+                BorderBrush="#7e7e7e"/>
+
+        <Border BorderThickness="3"
+                Margin="0,30,0,0"
+                IsHitTestVisible="True"
+                Panel.ZIndex="0"
+                Background="{StaticResource HitRegBg}"/>
+
+
+        <!-- Header -->
+        <Grid VerticalAlignment="Top" Height="40" Margin="15,42,15,0"
+              IsHitTestVisible="True">
+            <Grid Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+
+                <Border Height="35" VerticalAlignment="Top" Margin="-5,0,-5,0" x:Name="FPSStatus" 
+                        IsHitTestVisible="True"
+                        Grid.Column="0" Grid.ColumnSpan="3" />
+            </Grid>
+
+
+            <Grid Margin="0,6,0,0" VerticalAlignment="Top">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="FPSMeter" Text="N/A" Foreground="White" Grid.Column="0"
+                           IsHitTestVisible="True"
+                           FontSize="16" HorizontalAlignment="Left"/>
+                <TextBlock x:Name="FFTPSMeter" Text="N/A" Foreground="White" Grid.Column="1"
+                           IsHitTestVisible="True"
+                           FontSize="16" HorizontalAlignment="Left"/>
+                <TextBlock x:Name="PitchDisplay" Text="N/A" Foreground="White" Grid.Column="2"
+                           IsHitTestVisible="True"
+                           FontSize="16" HorizontalAlignment="Left"/>
+            </Grid>
+        </Grid>
+
+        <Grid Background="{DynamicResource ResourceKey=MainBg}"
+              VerticalAlignment="Top"
+              Margin="0,30,0,0"
+              Height="10"/>
+
+
+        <Grid Background="{DynamicResource ResourceKey=MainBg}"
+              VerticalAlignment="Top"
+              Margin="0,40,0,0"
+              x:Name="HeaderCutoutGrid"
+              Height="40">
+            <Grid.Clip>
+                <CombinedGeometry GeometryCombineMode="Exclude">
+                    <!-- Full Rectangle -->
+                    <CombinedGeometry.Geometry1>
+                        <RectangleGeometry Rect="0,0,400,200"/>
+                    </CombinedGeometry.Geometry1>
+
+                    <!-- Inner rounded rectangle to exclude -->
+                    <CombinedGeometry.Geometry2>
+                        <RectangleGeometry Rect="10,2,100,35" RadiusX="10" RadiusY="10"/>
+                    </CombinedGeometry.Geometry2>
+                </CombinedGeometry>
+            </Grid.Clip>
+            
+        </Grid>
+
+
+        <ScrollViewer Background="{DynamicResource ResourceKey=MainBg}" 
+                      Margin="0,80,0,0" 
+                      x:Name="SettingsContent"> <!-- Settings Controls -->
+            <StackPanel Orientation="Vertical" Margin="10,0,5,10">
+                <Grid HorizontalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20*"/>
+                        <ColumnDefinition Width="20*"/>
+                        <ColumnDefinition Width="25*"/>
+                        <ColumnDefinition Width="15*"/>
+                        <ColumnDefinition Width="15*"/>
+                        <ColumnDefinition Width="15*"/>
+                        <ColumnDefinition Width="15*"/>
+                        <ColumnDefinition Width="15*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="PlayPauseButton" Margin="0,10,10,10" Width="35"
+                            Style="{StaticResource WinUI3ButtonStyle}" Grid.Column="0"
+                            Click="PlayPauseButton_Click" Padding="10,4,10,4">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Play/Pause the visualizer" />
+                        </Button.ToolTip>
+                        <Path Data="F1 M 17.5 10 L 5 18.75 L 5 1.25 Z M 6.25 16.347656 L 15.322266 10 L 6.25 3.652344 Z " 
+                              Fill="White" Stretch="Uniform" Margin="3,2,0,0"/>
+                    </Button>
+                    <Button x:Name="NewInstance" Margin="0,10,10,10" Width="35"
+                            Style="{StaticResource WinUI3ButtonStyle}" Grid.Column="1"
+                            Click="NewInstance_Click" Padding="10,4,10,4">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Create a new instance of FreqFreak" />
+                        </Button.ToolTip>
+                        <Path Data="F1 M 10 9.941406 L 10 16.25 L 8.75 16.25 L 8.75 9.941406 L 7.158203 11.533203 L 6.279297 10.654297 L 9.375 7.558594 L 12.470703 10.654297 L 11.591797 11.533203 Z M 17.5 3.740234 L 17.5 16.259766 L 11.240234 16.259766 L 11.240234 15 L 16.240234 15 L 16.240234 5 L 2.5 5 L 2.5 15 L 7.5 15 L 7.5 16.259766 L 1.240234 16.259766 L 1.240234 3.740234 Z "
+                              Fill="White" Stretch="Uniform" Margin="1,2,0,0"/>
+                    </Button>
+                    <Button x:Name="RecenterButton" Margin="0,10,10,10" Width="35"
+                            Style="{StaticResource WinUI3ButtonStyle}" Grid.Column="2"
+                            Click="RecenterButton_Click" Padding="10,4,10,4">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Recenter the visualizer window (In case it gets away)" />
+                        </Button.ToolTip>
+                        <Path Data="F1 M 2.5 11.25 L 8.75 11.25 L 8.75 17.5 L 7.5 17.5 L 7.5 13.388672 L 0.908203 19.970703 L 0.029297 19.091797 L 6.611328 12.5 L 2.5 12.5 Z M 13.388672 7.5 L 17.5 7.5 L 17.5 8.75 L 11.25 8.75 L 11.25 2.5 L 12.5 2.5 L 12.5 6.611328 L 19.091797 0.029297 L 19.970703 0.908203 Z " 
+                              Fill="White" Stretch="Uniform" Margin="1,2,0,0"/>
+                    </Button>
+                    <Button x:Name="ExportButton" Margin="0,10,10,10" Width="35"
+                            Style="{StaticResource WinUI3ButtonStyle}" Grid.Column="3"
+                            Click="ExportButton_Click" Padding="10,4,10,4">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Export your current settings to a file" />
+                        </Button.ToolTip>
+                        <Path Data="F1 M 15 0 L 15 1.25 L 3.75 1.25 L 3.75 0 Z M 15.439453 9.560547 L 14.560547 10.439453 L 10 5.849609 L 10 20 L 8.75 20 L 8.75 5.849609 L 4.189453 10.439453 L 3.310547 9.560547 L 9.375 3.447266 Z " 
+                              Fill="White" Stretch="Uniform" Margin="2,2,2,0"/>
+                    </Button>
+                    <Button x:Name="ImportButton" Margin="0,10,10,10" Width="35"
+                            Style="{StaticResource WinUI3ButtonStyle}" Grid.Column="4"
+                            Click="ImportButton_Click" Padding="10,4,10,4">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Import settings from a file" />
+                        </Button.ToolTip>
+                        <Path Data="F1 M 3.75 20 L 3.75 18.75 L 15 18.75 L 15 20 Z M 15.439453 10.439453 L 9.375 16.552734 L 3.310547 10.439453 L 4.189453 9.560547 L 8.75 14.150391 L 8.75 0 L 10 0 L 10 14.150391 L 14.560547 9.560547 Z " 
+                              Fill="White" Stretch="Uniform" Margin="2,2,2,0"/>
+                    </Button>
+                    <Button x:Name="AudioDevicesButton" Margin="0,10,10,10" Width="35"
+                            Style="{StaticResource WinUI3ButtonStyle}" Grid.Column="5"
+                            Click="AudioDevicesButton_Click" Padding="10,4,10,4">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Change the audio input device/application" />
+                        </Button.ToolTip>
+                        <Path Data="F1 M 20 2.5 L 20 3.75 L 12.5 3.75 L 12.5 4.375 C 12.5 4.635418 12.451172 4.879559 12.353516 5.107422 C 12.255859 5.335287 12.122396 5.533854 11.953125 5.703125 C 11.783854 5.872396 11.585286 6.005859 11.357422 6.103516 C 11.129557 6.201172 10.885416 6.25 10.625 6.25 C 10.364583 6.25 10.120442 6.201172 9.892578 6.103516 C 9.664713 6.005859 9.466146 5.872396 9.296875 5.703125 C 9.127604 5.533854 8.994141 5.335287 8.896484 5.107422 C 8.798828 4.879559 8.75 4.635418 8.75 4.375 L 8.75 3.75 L 0 3.75 L 0 2.5 L 8.75 2.5 L 8.75 1.875 C 8.75 1.614584 8.798828 1.370443 8.896484 1.142578 C 8.994141 0.914715 9.127604 0.716146 9.296875 0.546875 C 9.466146 0.377605 9.664713 0.244141 9.892578 0.146484 C 10.120442 0.048828 10.364583 0 10.625 0 C 10.885416 0 11.129557 0.048828 11.357422 0.146484 C 11.585286 0.244141 11.783854 0.377605 11.953125 0.546875 C 12.122396 0.716146 12.255859 0.914715 12.353516 1.142578 C 12.451172 1.370443 12.5 1.614584 12.5 1.875 L 12.5 2.5 Z M 11.25 1.875 C 11.25 1.70573 11.18815 1.559246 11.064453 1.435547 C 10.940755 1.31185 10.794271 1.25 10.625 1.25 C 10.455729 1.25 10.309244 1.31185 10.185547 1.435547 C 10.061849 1.559246 10 1.70573 10 1.875 L 10 4.375 C 10 4.544271 10.061849 4.690756 10.185547 4.814453 C 10.309244 4.938152 10.455729 5.000001 10.625 5 C 10.794271 5.000001 10.940755 4.938152 11.064453 4.814453 C 11.18815 4.690756 11.25 4.544271 11.25 4.375 Z M 4.375 6.25 C 4.635417 6.25 4.879557 6.298828 5.107422 6.396484 C 5.335286 6.494141 5.533854 6.627604 5.703125 6.796875 C 5.872396 6.966146 6.005859 7.164715 6.103516 7.392578 C 6.201172 7.620443 6.25 7.864584 6.25 8.125 L 6.25 8.75 L 20 8.75 L 20 10 L 6.25 10 L 6.25 10.625 C 6.25 10.885417 6.201172 11.129558 6.103516 11.357422 C 6.005859 11.585287 5.872396 11.783854 5.703125 11.953125 C 5.533854 12.122396 5.335286 12.255859 5.107422 12.353516 C 4.879557 12.451172 4.635417 12.5 4.375 12.5 C 4.114583 12.5 3.870442 12.451172 3.642578 12.353516 C 3.414713 12.255859 3.216146 12.122396 3.046875 11.953125 C 2.877604 11.783854 2.744141 11.585287 2.646484 11.357422 C 2.548828 11.129558 2.5 10.885417 2.5 10.625 L 2.5 10 L 0 10 L 0 8.75 L 2.5 8.75 L 2.5 8.125 C 2.5 7.864584 2.548828 7.620443 2.646484 7.392578 C 2.744141 7.164715 2.877604 6.966146 3.046875 6.796875 C 3.216146 6.627604 3.414713 6.494141 3.642578 6.396484 C 3.870442 6.298828 4.114583 6.25 4.375 6.25 Z M 5 8.125 C 5 7.95573 4.938151 7.809246 4.814453 7.685547 C 4.690755 7.56185 4.544271 7.5 4.375 7.5 C 4.205729 7.5 4.059245 7.56185 3.935547 7.685547 C 3.811849 7.809246 3.75 7.95573 3.75 8.125 L 3.75 10.625 C 3.75 10.794271 3.811849 10.940756 3.935547 11.064453 C 4.059245 11.188151 4.205729 11.25 4.375 11.25 C 4.544271 11.25 4.690755 11.188151 4.814453 11.064453 C 4.938151 10.940756 5 10.794271 5 10.625 Z M 0 15 L 8.75 15 L 8.75 16.25 L 0 16.25 Z M 16.40625 12.978516 C 16.757812 13.330078 17.027994 13.735352 17.216797 14.194336 C 17.405598 14.65332 17.5 15.130209 17.5 15.625 C 17.5 16.119793 17.405598 16.59668 17.216797 17.055664 C 17.027994 17.514648 16.757812 17.919922 16.40625 18.271484 L 15.517578 17.392578 C 15.751953 17.158203 15.932617 16.888021 16.05957 16.582031 C 16.186523 16.276041 16.25 15.957031 16.25 15.625 C 16.25 15.292969 16.186523 14.973959 16.05957 14.667969 C 15.932617 14.361979 15.751953 14.091797 15.517578 13.857422 Z M 18.173828 11.201172 C 18.766275 11.79362 19.21875 12.470703 19.53125 13.232422 C 19.84375 13.994141 20 14.791667 20 15.625 C 20 16.458334 19.84375 17.255859 19.53125 18.017578 C 19.21875 18.779297 18.766275 19.456381 18.173828 20.048828 L 17.285156 19.160156 C 17.753906 18.691406 18.115234 18.15267 18.369141 17.543945 C 18.623047 16.935223 18.75 16.295574 18.75 15.625 C 18.75 14.954428 18.623047 14.314779 18.369141 13.706055 C 18.115234 13.097331 17.753906 12.558594 17.285156 12.089844 Z M 14.111328 11.25 L 15 11.25 L 15 20 L 14.111328 20 L 11.611328 17.5 L 10 17.5 L 10 13.75 L 11.611328 13.75 Z M 13.75 13.388672 L 12.138672 15 L 11.25 15 L 11.25 16.25 L 12.138672 16.25 L 13.75 17.861328 Z " 
+                              Fill="White" Stretch="Uniform" Margin="0,2,0,0"/>
+                    </Button>
+                    <Button x:Name="FVZButton" Margin="0,10,10,10" Width="35"
+                            Style="{StaticResource WinUI3ButtonStyle}" Grid.Column="6"
+                            Click="FVZButton_Click" Padding="10,4,10,4">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Open the FVZ Tool used to play/generate FVZ files" />
+                        </Button.ToolTip>
+                        <Path Data="F1 M 20 3.75 L 20 5 L 0 5 L 0 3.75 Z M 0 7.5 L 20 7.5 L 20 8.75 L 0 8.75 Z M 12.5 16.25 L 0 16.25 L 0 15 L 12.5 15 Z M 13.75 12.167969 L 20 10.605469 L 20 17.5 C 20 17.701822 19.952799 17.879232 19.858398 18.032227 C 19.763996 18.185221 19.640299 18.31543 19.487305 18.422852 C 19.334309 18.530273 19.165039 18.611654 18.979492 18.666992 C 18.793945 18.72233 18.613281 18.75 18.4375 18.75 C 18.261719 18.75 18.081055 18.72233 17.895508 18.666992 C 17.709961 18.611654 17.540689 18.530273 17.387695 18.422852 C 17.234699 18.31543 17.111002 18.185221 17.016602 18.032227 C 16.922199 17.879232 16.875 17.701822 16.875 17.5 C 16.875 17.298178 16.922199 17.120768 17.016602 16.967773 C 17.111002 16.814779 17.234699 16.68457 17.387695 16.577148 C 17.540689 16.469727 17.709961 16.388346 17.895508 16.333008 C 18.081055 16.27767 18.261719 16.25 18.4375 16.25 C 18.535156 16.25 18.639322 16.259766 18.75 16.279297 L 18.75 12.207031 L 15 13.144531 L 15 18.75 C 14.999999 18.958334 14.947916 19.140625 14.84375 19.296875 C 14.739583 19.453125 14.607747 19.583334 14.448242 19.6875 C 14.288736 19.791666 14.111327 19.869791 13.916016 19.921875 C 13.720702 19.973959 13.535155 20 13.359375 20 C 13.183593 20 12.998046 19.973959 12.802734 19.921875 C 12.607421 19.869791 12.430012 19.791666 12.270508 19.6875 C 12.111002 19.583334 11.979166 19.453125 11.875 19.296875 C 11.770833 19.140625 11.71875 18.958334 11.71875 18.75 C 11.71875 18.541666 11.770833 18.359375 11.875 18.203125 C 11.979166 18.046875 12.111002 17.916666 12.270508 17.8125 C 12.430012 17.708334 12.607421 17.630209 12.802734 17.578125 C 12.998046 17.526041 13.183593 17.5 13.359375 17.5 C 13.424479 17.5 13.489583 17.503256 13.554688 17.509766 C 13.619791 17.516275 13.684895 17.526041 13.75 17.539062 Z M 12.5 12.5 L 0 12.5 L 0 11.25 L 12.5 11.25 Z " 
+                              Fill="White" Stretch="Uniform" Margin="0,2,0,0"/>
+                    </Button>
+                    <Button x:Name="PhotoButton" Margin="0,10,10,10" Width="35"
+                             Style="{StaticResource WinUI3ButtonStyle}" Grid.Column="7"
+                             Click="PhotoButton_Click" Padding="10,4,10,4">
+                        <Button.ToolTip>
+                            <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Open the cutout tool " />
+                        </Button.ToolTip>
+                        <Path Data="F1 M 20 2.5 L 20 17.5 L 0 17.5 L 0 2.5 Z M 1.25 3.75 L 1.25 10.361328 L 5.625 5.996094 L 11.875 12.246094 L 14.375 9.746094 L 18.75 14.111328 L 18.75 3.75 Z M 1.25 16.25 L 14.111328 16.25 L 5.625 7.753906 L 1.25 12.138672 Z M 18.75 16.25 L 18.75 15.888672 L 14.375 11.503906 L 12.753906 13.125 L 15.888672 16.25 Z M 15.625 7.5 C 15.455729 7.5 15.309244 7.438151 15.185547 7.314453 C 15.061848 7.190756 14.999999 7.044271 15 6.875 C 14.999999 6.705729 15.061848 6.559245 15.185547 6.435547 C 15.309244 6.31185 15.455729 6.25 15.625 6.25 C 15.79427 6.25 15.940754 6.31185 16.064453 6.435547 C 16.18815 6.559245 16.25 6.705729 16.25 6.875 C 16.25 7.044271 16.18815 7.190756 16.064453 7.314453 C 15.940754 7.438151 15.79427 7.5 15.625 7.5 Z " 
+                              Fill="White" Stretch="Uniform" Margin="1,2,0,0"/>
+                    </Button>
+                </Grid>
+                
                 <GroupBox Padding="10,10,10,10" Header="Bar Options">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -38,45 +235,119 @@
                             <RowDefinition Height="33*"/>
                             <RowDefinition Height="33*"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Column="0" Grid.Row="0" Margin="0,-5,0,0">Bar Height <Span FontSize="18" ToolTip="Maximum Height bars can be (but not always the max height bars will reach)">ⓘ</Span></TextBlock>
-                        <TextBox x:Name="BarHeightInput" Width="100" HorizontalAlignment="Left"
+                        <TextBlock Grid.Column="0" Grid.Row="0" Margin="0,-5,0,0">Bar Height 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Maximum Height bars can be (but not always the max height bars will reach)" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
+                        <TextBox x:Name="BarHeightInput" Width="100" HorizontalAlignment="Left" 
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="0" Grid.Row="0" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="1" Grid.Row="0" Margin="0,-5,0,0">Bar Height Min <Span FontSize="18" ToolTip="How tall bars will be when no sound is playing on that bin">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="1" Grid.Row="0" Margin="0,-5,0,0">Bar Height Min 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="How tall bars will be when no sound is playing on that bin" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="BarHeightMinInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="0" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="2" Grid.Row="0" Margin="0,-5,0,0">Number of Bars <Span FontSize="18" ToolTip="How many bars to bin frequencies into">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="2" Grid.Row="0" Margin="0,-5,0,0">Number of Bars 
+                                <Span FontSize="18">
+                                    <Span.ToolTip>
+                                        <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="How many bars to bin frequencies into" />
+                                    </Span.ToolTip>
+                                    ⓘ
+                                </Span>
+                        </TextBlock>
                         <TextBox x:Name="NumBarInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="2" Grid.Row="0" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="0" Grid.Row="1" Margin="0,-5,0,0">Bar Width <Span FontSize="18" ToolTip="How wide each bar should be">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="0" Grid.Row="1" Margin="0,-5,0,0">Bar Width 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="How wide each bar should be" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="BarWidthInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="0" Grid.Row="1" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="1" Grid.Row="1" Margin="0,-5,0,0">Bar Gap <Span FontSize="18" ToolTip="How wide the gap between bars should be">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="1" Grid.Row="1" Margin="0,-5,0,0">Bar Gap
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="How wide the gap between bars should be" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="BarGapInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="1" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="2" Grid.Row="1" Margin="0,-5,0,0">Show Peak Lines <Span FontSize="18" ToolTip="Show lines at the peak of each bar that decay at a slower, steady pace">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="2" Grid.Row="1" Margin="0,-5,0,0">Show Peak Lines 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Show lines at the peak of each bar that decay at a slower, steady pace" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <CheckBox x:Name="ShowPeaksInput" Width="100" HorizontalAlignment="Left"
+                                  Style="{StaticResource WinUI3CheckBoxStyle}"
                                   Click="ShowPeaksInput_Click" Grid.Column="2" Grid.Row="1" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="0" Grid.Row="2" Margin="0,-5,0,0">Position <Span FontSize="18" ToolTip="Where the bars will originate from">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="0" Grid.Row="2" Margin="0,-5,0,0">Mode 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Where the bars will originate from" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <ComboBox x:Name="PosInput" SelectionChanged="SelectionChanged" 
+                                  Style="{StaticResource WinUI3ComboBoxStyle}" ItemContainerStyle="{StaticResource WinUI3ComboBoxItemStyle}"
                                   Grid.Column="0" Grid.Row="2" Margin="0,20,0,0" Width="100" HorizontalAlignment="Left">
                             <ComboBoxItem Content="Bottom"/>
                             <ComboBoxItem Content="Center"/>
                             <ComboBoxItem Content="Top"/>
                             <ComboBoxItem Content="OuterCircle"/>
                             <ComboBoxItem Content="InnerCircle"/>
+                            <ComboBoxItem Content="Oscilloscope"/>
                         </ComboBox>
 
-                        <TextBlock Grid.Column="1" Grid.Row="2" Margin="0,-5,0,0">Peak Decay <Span FontSize="18" ToolTip="How much Height should be lost each tick">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="1" Grid.Row="2" Margin="0,-5,0,0">Peak Decay 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="How much a Peak's Height should decay each tick" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="PeakDecay" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="2" Margin="0,20,0,0"/>
-                        <TextBlock Grid.Column="2" Grid.Row="2" Margin="0,-5,0,0">Peak Hold <Span FontSize="18" ToolTip="How many frames should a peak stay at it's max">ⓘ</Span></TextBlock>
+
+                        <TextBlock Grid.Column="2" Grid.Row="2" Margin="0,-5,0,0">Peak Hold 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="How many frames should a peak stay at it's max" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="PeakHold" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="2" Grid.Row="2" Margin="0,20,0,0"/>
 
                     </Grid>
@@ -94,31 +365,83 @@
                             <RowDefinition Height="33*"/>
                             <RowDefinition Height="33*"/>
                             <RowDefinition Height="33*"/>
+                            <RowDefinition Height="33*"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Column="0" Grid.Row="0" Margin="0,-5,0,0">DB Floor <Span FontSize="18" ToolTip="Determines how loud a sound must be before it is considered for visualization. Raise this number to let in less noise, lower it to let in more noise">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="0" Grid.Row="0" Margin="0,-5,0,0">DB Floor 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Determines how loud a sound must be before it is considered for visualization. Raise this number to let in less noise, lower it to let in more noise" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="FloorInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="1" Grid.Row="0" Margin="0,-5,0,0">DB Range <Span FontSize="18" ToolTip="Determines the range or variance in loudness, lower values create higher peaks while higher values smooth out peaks">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="1" Grid.Row="0" Margin="0,-5,0,0">DB Range 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Determines the range or variance in loudness, lower values create higher peaks while higher values smooth out peaks" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="RangeInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="0" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="2" Grid.Row="0" Margin="0,-5,0,0">Frequency Min <Span FontSize="18" ToolTip="The lower bound for frequncies to display (Lowest for human hearing is 20)">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="2" Grid.Row="0" Margin="0,-5,0,0">Frequency Min 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="The lower bound for frequncies to display (Lowest for human hearing is 20)" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="FreqMinInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="2" Grid.Row="0" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="0" Grid.Row="1" Margin="0,-5,0,0">Frequency Max <Span FontSize="18" ToolTip="The upper bound for frequncies to display (Highest for human hearing is 20000)">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="0" Grid.Row="1" Margin="0,-5,0,0">Frequency Max 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="The upper bound for frequncies to display (Highest for human hearing is 20000)" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="FreqMaxInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="0" Grid.Row="1" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="1" Grid.Row="1" Margin="0,-5,0,0">Binning Smoothness <Span FontSize="18" ToolTip="Determines how much of a bar should &quot;slide&quot; down to nearby lower bars, to smooth out jagged peaks">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="1" Grid.Row="1" Margin="0,-5,0,0">Binning Smoothness 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Determines how much of a bar should &quot;slide&quot; down to nearby lower bars, to smooth out jagged peaks" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="BinSmoothInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="1" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="0" Grid.Row="2" Margin="0,-5,0,0">FFT Resolution <Span FontSize="18" ToolTip="The window size for the FFT function, higher values can take in too much song at once and look incorrect, lower values will give less details in the spectrum">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="0" Grid.Row="2" Margin="0,-5,0,0">FFT Resolution 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="The window size for the FFT function, higher values can take in too much song at once and look incorrect, lower values will give less details in the spectrum" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <ComboBox x:Name="FFTResolutionInput" SelectionChanged="SelectionChanged" 
                                   Grid.Column="0" Grid.Row="2" Margin="0,20,0,0"
+                                  Style="{StaticResource WinUI3ComboBoxStyle}" ItemContainerStyle="{StaticResource WinUI3ComboBoxItemStyle}"
                                   Width="100" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="64"/>
+                            <ComboBoxItem Content="128"/>
+                            <ComboBoxItem Content="256"/>
                             <ComboBoxItem Content="512"/>
                             <ComboBoxItem Content="1024"/>
                             <ComboBoxItem Content="2048"/>
@@ -129,27 +452,122 @@
                             <ComboBoxItem Content="65536"/>
                         </ComboBox>
 
-                        <TextBlock Grid.Column="2" Grid.Row="1" Margin="0,-5,0,0">Spectrogram Mapping <Span FontSize="18" ToolTip="The algorithm to use for mapping frequencies to binned bars. Log10 is more raw, Mel is shifted for the human hearing spectrum, and Normalized is Log w/ DB scaling and DB Range normalization">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="2" Grid.Row="1" Margin="0,-5,0,0">Spectrogram Mapping 
+                        <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="The algorithm to use for mapping frequencies to binned bars. Log10 is more raw, Mel is shifted for the human hearing spectrum, and Normalized is Log w/ DB scaling and DB Range normalization" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <ComboBox x:Name="SpectrogramInput" Width="100" HorizontalAlignment="Left"
+                                  Style="{StaticResource WinUI3ComboBoxStyle}" ItemContainerStyle="{StaticResource WinUI3ComboBoxItemStyle}"
                                   SelectionChanged="SpectrogramInput_SelectionChanged" Grid.Column="2" Grid.Row="1" Margin="0,20,0,0">
                             <ComboBoxItem Content="Normalized"/>
                             <ComboBoxItem Content="Mel"/>
                             <ComboBoxItem Content="Log10"/>
                         </ComboBox>
 
-                        <TextBlock Grid.Column="1" Grid.Row="2" Margin="0,-5,0,0">Attack Speed <Span FontSize="18" ToolTip="The % at which bars will rise to meet the current real value. Lower values trade accuracy for smoothness">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="1" Grid.Row="2" Margin="0,-5,0,0">Attack Speed
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="The % at which bars will rise to meet the current real value. Lower values trade accuracy for smoothness" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="AttackSpeedInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="2" Margin="0,20,0,0"/>
-                        <TextBlock Grid.Column="2" Grid.Row="2" Margin="0,-5,0,0">Decay Speed <Span FontSize="18" ToolTip="The % at which bars will fall to meet the current real value. Lower values trade accuracy for smoothness">ⓘ</Span></TextBlock>
+
+                        <TextBlock Grid.Column="2" Grid.Row="2" Margin="0,-5,0,0">Decay Speed 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="The % at which bars will fall to meet the current real value. Lower values trade accuracy for smoothness" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="DecaySpeedInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="2" Grid.Row="2" Margin="0,20,0,0"/>
-                        <TextBlock Grid.Column="0" Grid.Row="3" Margin="0,-5,0,0">Invert Spectrum <Span FontSize="18" ToolTip="Determines whether to show from Low End -> High End or from High End -> Low End">ⓘ</Span></TextBlock>
+
+                        <TextBlock Grid.Column="0" Grid.Row="3" Margin="0,-5,0,0">Invert Spectrum 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Determines whether to show from Low End -> High End or from High End -> Low End" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <CheckBox x:Name="InvertSpectrum" Width="100" HorizontalAlignment="Left"
+                                  Style="{StaticResource WinUI3CheckBoxStyle}"
                                   Click="InvertSpectrum_Click" Grid.Column="0" Grid.Row="3" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="1" Grid.Row="3" Margin="0,-5,0,0">Rotation <Span FontSize="18" ToolTip="The rotation of the visualizer canvas">ⓘ</Span></TextBlock>
+                        <TextBlock Grid.Column="1" Grid.Row="3" Margin="0,-5,0,0">Rotation 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="The rotation of the visualizer canvas" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
                         <TextBox x:Name="RotationInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="3" Margin="0,20,0,0"/>
+
+                        <TextBlock Grid.Column="2" Grid.Row="3" Margin="0,-5,0,0">Audio Channel 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="The channel(s) to use for visualization. Some modes my not work with some channel configurations" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
+                        <ComboBox x:Name="AudioChannelInput" Width="100" HorizontalAlignment="Left"
+                                  Style="{StaticResource WinUI3ComboBoxStyle}" ItemContainerStyle="{StaticResource WinUI3ComboBoxItemStyle}"
+                                  SelectionChanged="AudioChannelInput_SelectionChanged" Grid.Column="2" Grid.Row="3" Margin="0,20,0,0">
+                            <ComboBoxItem Content="Mono"/>
+                            <ComboBoxItem Content="Stereo Left"/>
+                            <ComboBoxItem Content="Stereo Right"/>
+                            <ComboBoxItem Content="Stereo"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Column="0" Grid.Row="4" Margin="0,-5,0,0">Bass Scaling 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="How much to scale the visualizer when bass is kicking" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
+                        <TextBox x:Name="ScaleInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
+                                 TextChanged="Input_TextChanged" Grid.Column="0" Grid.Row="4" Margin="0,20,0,0"/>
+
+                        <TextBlock Grid.Column="1" Grid.Row="4" Margin="0,-5,0,0">Bass Shake 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="How much to shake the visualizer when bass is kicking" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
+                        <TextBox x:Name="ShakeInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
+                                 TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="4" Margin="0,20,0,0"/>
+
+                        <TextBlock Grid.Column="3" Grid.Row="4" Margin="0,-5,0,0">Show as Lines 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Instead of showing bars, a line will draw through the top point of where each bar would be" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
+                        <CheckBox x:Name="LinesInput" Width="100" HorizontalAlignment="Left"
+                                  Style="{StaticResource WinUI3CheckBoxStyle}"
+                                  Click="LinesInput_Click" Grid.Column="3" Grid.Row="4" Margin="0,20,0,0"/>
                     </Grid>
                 </GroupBox>
 
@@ -167,132 +585,250 @@
                             <RowDefinition Height="33*" MinHeight="40"/>
                             <RowDefinition Height="33*" MinHeight="40"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Column="0" Grid.Row="0" Margin="0,0,0,0">Bar Color Type </TextBlock>
+                        <TextBlock Grid.Column="0" Grid.Row="0" Margin="0,0,0,0">Bar Color Type</TextBlock>
                         <ComboBox x:Name="BarColorTypeInput" SelectionChanged="BarColorTypeInput_SelectionChanged"
-                                  Grid.Column="0" Grid.Row="0" Width="120" HorizontalAlignment="Left" Margin="0,20,0,0">
+                                  Style="{StaticResource WinUI3ComboBoxStyle}" ItemContainerStyle="{StaticResource WinUI3ComboBoxItemStyle}"
+                                  Grid.Column="0" Grid.Row="0" Width="140" HorizontalAlignment="Left" Margin="0,20,0,0">
                             <ComboBoxItem Content="Solid Color"/>
+                            <ComboBoxItem Content="Dual Color Vertical"/>
+                            <ComboBoxItem Content="Dual Color Horizontal"/>
+                            <ComboBoxItem Content="Dual Color Height"/>
+                            <ComboBoxItem Content="Dual Color Pitch"/>
+                            <ComboBoxItem Content="Dual Color Frequency"/>
                             <ComboBoxItem Content="Gradient Vertical"/>
                             <ComboBoxItem Content="Gradient Horizontal"/>
                             <ComboBoxItem Content="Gradient Height"/>
+                            <ComboBoxItem Content="Gradient Pitch"/>
+                            <ComboBoxItem Content="Gradient Frequency"/>
                         </ComboBox>
 
-                        <TextBlock Text="Color 1:" Margin="2,0,0,0" x:Name="ColorOneLabel"
+                        <TextBlock Text="Color 1" Margin="2,0,0,0" x:Name="ColorOneLabel"
                                    Grid.Column="1" Grid.Row="0"/>
                         <colorpicker:PortableColorPicker x:Name="BarColorOne" 
+                                                         Style="{StaticResource DefaultColorPickerStyle}"
                                                          Width="50" 
-                                                         Height="20"
+                                                         Height="30"
                                                          Grid.Column="1" Grid.Row="0"
                                                          Margin="0,20,0,0"
                                                          HorizontalAlignment="Left"
                                                          ColorChanged="BarColor_ColorChanged"/>
 
-                        <Button Width="50" 
+                        <Button Grid.Column="1" 
+                                Grid.ColumnSpan="2"
+                                HorizontalAlignment="Left"
+                                x:Name="GradientEditButton"
+                                Height="30"
+                                Click="GradientEditButton_Click"
+                                Style="{StaticResource WinUI3ButtonStyle}"
+                                Margin="0,20,-10,0"
+                                Content="Edit Gradient"
+                                Visibility="Collapsed"
+                                Grid.Row="0"/>
+
+                        <Button Width="60" 
                                 Grid.Column="1" 
+                                Style="{StaticResource WinUI3ButtonStyle}"
                                 x:Name="SwapButton"
                                 Click="SwapButton_Click"
-                                Margin="50,21,0,0"
-                                Height="22"
+                                Height="30"
+                                Margin="50,20,0,0"
                                 Content="Swap"
                                 Grid.Row="0"/>
 
-                        <TextBlock Text="Color 2:" Margin="2,0,0,0" x:Name="ColorTwoLabel"
+                        <TextBlock Text="Color 2" Margin="2,0,0,0" x:Name="ColorTwoLabel"
                                    Grid.Column="2" Grid.Row="0"/>
                         <colorpicker:PortableColorPicker x:Name="BarColorTwo" 
+                                                         Style="{StaticResource DefaultColorPickerStyle}"
                                                          Width="50" 
-                                                         Height="20"
+                                                         Height="30"
                                                          Grid.Column="2" Grid.Row="0"
                                                          Margin="0,20,0,0"
                                                          HorizontalAlignment="Left"
                                                          ColorChanged="BarColor_ColorChanged"/>
 
-                        <TextBlock Text="Color Move Speed:" Margin="0,0,0,0" Grid.Column="0" Grid.Row="2" x:Name="ColorChangeLabel1"/>
+                        <TextBlock Text="Color Change Amount" Margin="0,0,0,0" Grid.Column="0" Grid.Row="2" x:Name="ColorChangeLabel1"/>
                         <TextBox x:Name="ColorMoveSpeedInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="0" Grid.Row="2" Margin="0,20,0,0"/>
-                        <TextBlock Text="Color Change Frequency (milliseconds):" Margin="0,0,0,0" x:Name="ColorChangeLabel2"
+                        <TextBlock Text="Color Change Frequency" Margin="0,0,0,0" x:Name="ColorChangeLabel2"
                                    Grid.Column="1" Grid.Row="2" Grid.ColumnSpan="2"/>
                         <TextBox x:Name="ColorChangeFreqInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="2" Margin="0,20,0,0"/>
 
-                        <TextBlock Text="Peak Color:" Margin="0,0,0,0" Grid.Column="1" Grid.Row="1"/>
+                        <TextBlock Text="Show Centerline" Margin="0,0,0,0"
+                                   Grid.Column="2" Grid.Row="2" Grid.ColumnSpan="1"/>
+                        <CheckBox x:Name="CenterlineInput" Width="100" HorizontalAlignment="Left" IsChecked="False"
+                                  Style="{StaticResource WinUI3CheckBoxStyle}"
+                                  Click="CenterlineInput_Click" Grid.Column="2" Grid.Row="2" Margin="0,22,0,0"/>
+
+                        <TextBlock Text="Peak Color:" Margin="0,0,0,0" Grid.Column="1" Grid.Row="1" x:Name="ColorThreeLabel"/>
                         <colorpicker:PortableColorPicker x:Name="PeakColor" 
+                                                         Style="{StaticResource DefaultColorPickerStyle}"
                                                          Width="50" 
-                                                         Height="20"
+                                                         Height="30"
                                                          Grid.Column="1" Grid.Row="1"
                                                          Margin="0,20,0,0"
                                                          HorizontalAlignment="Left"
                                                          ColorChanged="BarColor_ColorChanged"/>
 
-                        <Button Width="50" 
+                        <Button Grid.Column="1" 
+                                HorizontalAlignment="Left"
+                                Style="{StaticResource WinUI3ButtonStyle}"
+                                x:Name="PeakGradientEditButton"
+                                Click="PeakGradientEditButton_Click"
+                                Margin="0,20,0,0"
+                                Height="30"
+                                Content="Edit Gradient"
+                                Visibility="Collapsed"
+                                Grid.Row="1"/>
+
+                        <Button Width="60" 
                                 Grid.Column="1" 
+                                Style="{StaticResource WinUI3ButtonStyle}"
                                 x:Name="PeakSwapButton"
                                 Click="PeakSwapButton_Click"
-                                Margin="50,21,0,0"
-                                Height="22"
+                                Height="30"
+                                Margin="50,20,0,0"
                                 Content="Swap"
                                 Grid.Row="1"/>
 
                         <TextBlock Text="Peak Color 2" Margin="2,1,0,0" x:Name="ColorFourLabel"
                                    Grid.Column="2" Grid.Row="1"/>
                         <colorpicker:PortableColorPicker x:Name="PeakColorTwo" 
-                                 Width="50" 
-                                 Height="20"
-                                 Grid.Column="2" Grid.Row="1"
-                                 Margin="0,20,0,0"
-                                 HorizontalAlignment="Left"
-                                 ColorChanged="BarColor_ColorChanged"/>
+                                                         Style="{StaticResource DefaultColorPickerStyle}"
+                                                         Width="50" 
+                                                         Height="30"
+                                                         Grid.Column="2" Grid.Row="1"
+                                                         Margin="0,20,0,0"
+                                                         HorizontalAlignment="Left"
+                                                         ColorChanged="BarColor_ColorChanged"/>
 
                         <TextBlock Grid.Column="0" Grid.Row="1" Margin="0,0,0,0">Peak Color Type</TextBlock>
                         <ComboBox x:Name="PeakColorTypeInput" SelectionChanged="BarColorTypeInput_SelectionChanged"
-                                  Grid.Column="0" Grid.Row="1" Width="120" HorizontalAlignment="Left" Margin="0,20,0,0">
+                                  Style="{StaticResource WinUI3ComboBoxStyle}" ItemContainerStyle="{StaticResource WinUI3ComboBoxItemStyle}"
+                                  Height="30"
+                                  Grid.Column="0" Grid.Row="1" Width="140" HorizontalAlignment="Left" Margin="0,20,0,0">
                             <ComboBoxItem Content="Match Bars"/>
                             <ComboBoxItem Content="Solid Color"/>
+                            <ComboBoxItem Content="Dual Color Vertical"/>
+                            <ComboBoxItem Content="Dual Color Horizontal"/>
+                            <ComboBoxItem Content="Dual Color Height"/>
+                            <ComboBoxItem Content="Dual Color Pitch"/>
+                            <ComboBoxItem Content="Dual Color Frequency"/>
                             <ComboBoxItem Content="Gradient Vertical"/>
                             <ComboBoxItem Content="Gradient Horizontal"/>
                             <ComboBoxItem Content="Gradient Height"/>
+                            <ComboBoxItem Content="Gradient Pitch"/>
+                            <ComboBoxItem Content="Gradient Frequency"/>
                         </ComboBox>
 
-                        <TextBlock Text="Move Colors" Margin="0,2,0,0" Grid.Column="0" Grid.Row="3" />
+                        <TextBlock Text="Color Movement Direction" Margin="0,2,0,0" Grid.Column="0" Grid.Row="3" />
                         <StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="3">
                             <RadioButton x:Name="NoMovement" Width="100" HorizontalAlignment="Left" Content="None"
+                                         Style="{StaticResource WinUI3RadioButtonStyle}"
                                          Click="NoMovement_Click" Grid.Column="2" Grid.Row="1" Margin="0,20,0,0"/>
                             <RadioButton x:Name="LeftMovement" Width="100" HorizontalAlignment="Left" Content="Left"
+                                         Style="{StaticResource WinUI3RadioButtonStyle}"
                                          Click="NoMovement_Click" Grid.Column="2" Grid.Row="1" Margin="0,20,0,0"/>
                             <RadioButton x:Name="RightMovement" Width="100" HorizontalAlignment="Left" Content="Right"
+                                         Style="{StaticResource WinUI3RadioButtonStyle}"
                                          Click="NoMovement_Click" Grid.Column="2" Grid.Row="1" Margin="0,20,0,0"/>
 
                         </StackPanel>
 
                         <TextBlock Text="Tray Icon Color" Margin="0,0,0,0" Grid.Column="0" Grid.Row="4"/>
                         <colorpicker:PortableColorPicker x:Name="TrayIconColor" 
-                                 Width="50" 
-                                 Height="20"
-                                 Grid.Column="0" Grid.Row="4"
-                                 Margin="0,20,0,0"
-                                 HorizontalAlignment="Left"
-                                 ColorChanged="TrayIconColor_ColorChanged"/>
+                                                         Style="{StaticResource DefaultColorPickerStyle}"
+                                                         Width="50" 
+                                                         Height="25"
+                                                         Grid.Column="0" Grid.Row="4"
+                                                         Margin="0,20,0,0"
+                                                         HorizontalAlignment="Left"
+                                                         ColorChanged="TrayIconColor_ColorChanged"/>
 
                         <TextBlock Text="Always On Top" Margin="0,1,0,0" Grid.Column="1" Grid.Row="4" />
                         <CheckBox x:Name="OnTopInput" Width="100" HorizontalAlignment="Left" IsChecked="True"
+                                  Style="{StaticResource WinUI3CheckBoxStyle}"
                                   Click="OnTopInput_Click" Grid.Column="1" Grid.Row="4" Margin="0,22,0,0"/>
 
                         <TextBlock Text="Preview" Margin="0,2,0,0" Grid.Column="2" Grid.Row="4" />
                         <CheckBox x:Name="PreviewInput" Width="100" HorizontalAlignment="Left" IsChecked="False"
+                                  Style="{StaticResource WinUI3CheckBoxStyle}"
                                   Click="PreviewInput_Click" Grid.Column="2" Grid.Row="4" Margin="0,22,0,0"/>
                     </Grid>
                 </GroupBox>
-
-                <StackPanel Orientation="Horizontal">
-                    <Button x:Name="ExportButton" Content="Export Config" Margin="10,10,10,10"
-                            Click="ExportButton_Click" Padding="10,4,10,4"/>
-                    <Button x:Name="ImportButton" Content="Import Config" Margin="10,10,10,10"
-                            Click="ImportButton_Click" Padding="10,4,10,4"/>
-                    <Button x:Name="AudioDevicesButton" Content="Select Audio Input" Margin="10,10,10,10"
-                            Click="AudioDevicesButton_Click" Padding="10,4,10,4"/>
-                    <Button x:Name="FVZButton" Content="Toggle FVZ Tool" Margin="10,10,10,10"
-                            Click="FVZButton_Click" Padding="10,4,10,4"/>
-                </StackPanel>
-                <TextBlock Text="Version 1.1.0"/>
+                <TextBlock Text="Version 2.0.0"/>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- Resize hitboxes -->
+        <Rectangle x:Name="LeftBorder"    
+                   Width="5"
+                   Panel.ZIndex="10"
+                   Fill="Transparent"
+                   HorizontalAlignment="Left"
+                   Cursor="SizeWE"
+                   MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle x:Name="RightBorder"
+                   Width="5"
+                   Fill="Transparent"
+                   HorizontalAlignment="Right"
+                   Panel.ZIndex="10"
+                   Cursor="SizeWE"
+                   MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle x:Name="TopBorder"
+                   Height="5"
+                   VerticalAlignment="Top"
+                   Fill="Transparent"
+                   Panel.ZIndex="10"
+                   Cursor="SizeNS"
+                   MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle x:Name="BottomBorder"
+                   Height="5"
+                   VerticalAlignment="Bottom"
+                   Panel.ZIndex="10"
+                   Fill="Transparent"
+                   Cursor="SizeNS"
+                   MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+
+        <!-- corners -->
+        <Rectangle x:Name="TopLeft"
+                   Width="10"
+                   Height="10"
+                   HorizontalAlignment="Left"  
+                   Panel.ZIndex="10"
+                   Fill="Transparent"
+                   VerticalAlignment="Top"
+                   Cursor="SizeNWSE"
+                   MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle x:Name="TopRight" 
+                   Width="10" 
+                   Height="10"
+                   HorizontalAlignment="Right" 
+                   VerticalAlignment="Top"
+                   Fill="Transparent"
+                   Panel.ZIndex="10"
+                   Cursor="SizeNESW"
+                   MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle x:Name="BottomLeft"
+                   Width="10"
+                   Height="10"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Bottom"
+                   Fill="Transparent"
+                   Panel.ZIndex="10"
+                   Cursor="SizeNESW"
+                   MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        <Rectangle x:Name="BottomRight"
+                   Width="10"  
+                   Panel.ZIndex="10"
+                   Height="10"
+                   HorizontalAlignment="Right" 
+                   VerticalAlignment="Bottom"
+                   Fill="Transparent"
+                   Cursor="SizeNWSE"
+                   MouseLeftButtonDown="Resize_MouseLeftButtonDown"/>
+        
     </Grid>
 </Window>

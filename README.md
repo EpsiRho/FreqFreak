@@ -33,7 +33,7 @@ From here there is so much to control!
 	- The gap width in between each bar
 - Show Peak Lines
 	- Show peak lines that hang above each bar for a specified amount of time before falling
-- Position
+- Mode
 	- Bottom, Centered, Middle, Outer Ring, Inner Ring
 	- How the bars should be position and extend out from
 - Peak Decay
