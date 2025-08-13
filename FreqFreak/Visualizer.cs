@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Windows.Media;
 using FftSharp;
 using NAudio.CoreAudioApi;
@@ -25,6 +26,7 @@ namespace FreqFreak
         public static bool ChangeBg;
         public static bool ShowBg;
         public static bool UpdateSettings;
+        public static bool UpdateHandshake;
         public static bool UpdatePeaks;
         public static List<string> GetOutputDevices()
         {
@@ -311,22 +313,22 @@ namespace FreqFreak
                     _oscilloscopeBuffer.Enqueue(sample);
                 }
 
-                //while (_oscilloscopeBuffer.Count >= _oscilloscopeFrameSize)
-                //{
-                //    var frameL = new double[_oscilloscopeFrameSize];
-                //    var frameR = new double[_oscilloscopeFrameSize];
+                while (_oscilloscopeBuffer.Count >= _oscilloscopeFrameSize)
+                {
+                    var frameL = new double[_oscilloscopeFrameSize];
+                    var frameR = new double[_oscilloscopeFrameSize];
 
-                //    for (int i = 0; i < _oscilloscopeFrameSize; i++)
-                //    {
-                //        var sample = _oscilloscopeBuffer.Dequeue(); // Remove used samples
-                //        frameL[i] = sample.L;
-                //        frameR[i] = sample.R;
-                //    }
+                    for (int i = 0; i < _oscilloscopeFrameSize; i++)
+                    {
+                        var sample = _oscilloscopeBuffer.Dequeue(); // Remove used samples
+                        frameL[i] = sample.L;
+                        frameR[i] = sample.R;
+                    }
 
-                //    MainWin.Dispatcher.BeginInvoke(() => {
-                //        MainWin.OscView?.UpdatePlane(frameL, frameR);
-                //    });
-                //}
+                    MainWin.Dispatcher.BeginInvoke(() => {
+                        MainWin.OscView?.UpdatePlane(frameL, frameR);
+                    });
+                }
             }
         }
 
@@ -649,7 +651,7 @@ namespace FreqFreak
 
                 // Apply gain compensation as frequency increases (so high ends don't get washed)
                 double t = r / (double)(rows - 1);
-                double comp = double.Lerp(1.17, 1.05, t);
+                double comp = double.Lerp(Visualizer.InstanceOptions._bassDampening, 1, t);
                 dbNorm /= comp;
 
                 // Use Soft Gate to gate out noise and an exponential smoothstep to smooth out the missing cliff
@@ -840,6 +842,10 @@ namespace FreqFreak
                 double db = 20 * Math.Log10(rms + 1e-20);
                 double dbNorm = Math.Clamp((db - InstanceOptions._dbFloor) / InstanceOptions._dbRange, 0, 1);
 
+                // Apply gain compensation as frequency increases (so high ends don't get washed)
+                double t = r / (double)(rows - 1);
+                double comp = double.Lerp(Visualizer.InstanceOptions._bassDampening, 1, t);
+                dbNorm /= comp;
 
                 frame[r] = dbNorm;
             }
@@ -940,6 +946,11 @@ namespace FreqFreak
                 double topDb = InstanceOptions._dbFloor + InstanceOptions._dbRange;
                 double dbNorm = Math.Clamp((db - InstanceOptions._dbFloor) / InstanceOptions._dbRange, 0, 1);
                 frame[r] = dbNorm;
+
+                // Apply gain compensation as frequency increases (so high ends don't get washed)
+                double t = r / (double)(rows - 1);
+                double comp = double.Lerp(Visualizer.InstanceOptions._bassDampening, 1, t);
+                dbNorm /= comp;
             }
 
             // At this point we have values usable in our visualizer and format, 0.0->1.0 where 0 is no sound in(/around) that frequency and 1 is very loud sound in that frequency (clamped max, but can technically go "out of bounds")

@@ -25,10 +25,8 @@ namespace FreqFreak
     {
         private Color bgColor = Color.FromArgb(200, 26, 26, 26);
         private bool AllowSet = true;
-        private NormalDragHandler dragHandler;
         public PhotoCutout()
         {
-            dragHandler = new(this);
             InitializeComponent();
             Loaded += (_, __) =>
             {
@@ -54,7 +52,6 @@ namespace FreqFreak
 
         private async void AddButton_Click(object sender, RoutedEventArgs e)
         {
-            dragHandler = new(this);
             var openFileDialog = new Microsoft.Win32.OpenFileDialog
             {
                 Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif",
@@ -106,7 +103,7 @@ namespace FreqFreak
 
             return tcs.Task;
         }
-        public void UpdateSettings(Guid id, double x, double y, double w, double h, double bScale, double bShake, double r, bool t, bool d)
+        public void UpdateSettings(Guid id, double x, double y, double w, double h, double bScale, double r, bool t, bool d)
         {
             Dispatcher.BeginInvoke(() =>
             {
@@ -115,13 +112,13 @@ namespace FreqFreak
                     Guid selectedGuid = (Guid)(CutoutList.SelectedItem as ListViewItem).Tag;
                     if(selectedGuid == id)
                     {
-                        UpdateSettings(x, y, w, h, bScale, bShake, r, t, d);
+                        UpdateSettings(x, y, w, h, bScale, r, t, d);
                     }
                 }
             });
         }
 
-        public void UpdateSettings(double x, double y, double w, double h, double bScale, double bShake, double r, bool t, bool d)
+        public void UpdateSettings(double x, double y, double w, double h, double bScale, double r, bool t, bool d)
         {
             Dispatcher.Invoke(() =>
             {
@@ -130,7 +127,6 @@ namespace FreqFreak
                 WidthInput.Text = w.ToString();
                 HeightInput.Text = h.ToString();
                 BassScaleInput.Text = bScale.ToString();
-                BassShakeInput.Text = bShake.ToString();
                 RotationInput.Text = r.ToString();
                 AlwaysOnTopInput.IsChecked = t;
                 Draggable.IsChecked = d;
@@ -210,11 +206,10 @@ namespace FreqFreak
             double w = double.TryParse(WidthInput.Text, out var wVal) ? wVal : 0;
             double h = double.TryParse(HeightInput.Text, out var hVal) ? hVal : 0;
             double bScale = double.TryParse(BassScaleInput.Text, out var bScaleVal) ? bScaleVal : 1.0;
-            double bShake = double.TryParse(BassShakeInput.Text, out var bShakeVal) ? bShakeVal : 0.0;
             double r = double.TryParse(RotationInput.Text, out var rVal) ? rVal : 0.0;
             bool t = AlwaysOnTopInput.IsChecked ?? false;
             bool d = Draggable.IsChecked ?? false;
-            Visualizer.CutoutWindows.Find(cw => cw.id == guid)?.window.UpdateSettings(x, y, w, h, bScale, bShake, r, t, d);
+            Visualizer.CutoutWindows.Find(cw => cw.id == guid)?.window.UpdateSettings(x, y, w, h, bScale, r, t, d);
         }
 
         private void Input_TextChanged(object sender, TextChangedEventArgs e)
@@ -227,12 +222,13 @@ namespace FreqFreak
         {
             //var offset = e.GetPosition(this);
             //DragWorkaround.StartDragging(this, offset);
-            dragHandler.BeginDrag(e);
+            //dragHandler.BeginDrag(e);
+            DragMove();
         }
 
         private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            dragHandler.EndDrag();
+            //dragHandler.EndDrag();
         }
 
         private Point _dragStart;
@@ -347,7 +343,7 @@ namespace FreqFreak
             var item = (ListViewItem)CutoutList.SelectedItem;
             if(item == null)
             {
-                UpdateSettings(0, 0, 0, 0, 0, 0, 0, false, false);
+                UpdateSettings(0, 0, 0, 0, 0, 0, false, false);
                 InputGrid.IsEnabled = false;
                 return;
             }
@@ -372,15 +368,24 @@ namespace FreqFreak
                     w = window.window.WidthCache;
                     h = window.window.HeightCache;
                     bScale = window.window.BassScale;
-                    bShake = window.window.BassShake;
                     r = window.window.Rotation;
                     t = window.window.Topmost;
                     d = window.window.DraggableCache;
                 });
-                UpdateSettings(x, y, w, h, bScale, bShake, r, t, d);
+                UpdateSettings(x, y, w, h, bScale, r, t, d);
             }
             AllowSet = true;
             InputGrid.IsEnabled = true;
+        }
+
+        private void HelpButton_Click(object sender, RoutedEventArgs e)
+        {
+            HelpPopup.IsOpen = true;
+        }
+
+        private void AlwaysOnTopInput_Unchecked(object sender, RoutedEventArgs e)
+        {
+            UpdateValues();
         }
     }
 }

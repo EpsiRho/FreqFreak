@@ -181,5 +181,30 @@
             <TextBlock Text="🔊" FontSize="24"
                        Margin="115,-36,0,0" HorizontalAlignment="Left"/>
         </StackPanel>
+        <Popup x:Name="HelpPopup"
+               Placement="Top"
+               PlacementTarget="{Binding ElementName=HelpButton}"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               PopupAnimation="Fade">
+            <Border Style="{StaticResource WinUI3PopupContainerStyle}">
+                <Grid>
+                    <StackPanel Margin="0,0,0,0">
+                        <TextBlock Text="Here you can generate/load/play/export FVZ files." Foreground="White" FontSize="14"/>
+                        <TextBlock Text="To Generate: load a song, then hit generate. Settings will follow your Options Window." Foreground="White" FontSize="14"/>
+                        <TextBlock Text="To Load: load a song file and it's paired .fvz file." Foreground="White" FontSize="14"/>
+                        <TextBlock Text="To Play: just hit play!" Foreground="White" FontSize="14"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Popup>
+        <Button HorizontalAlignment="Right"
+                Style="{StaticResource TitleButtonStyle}"
+                Height="30"
+                x:Name="HelpButton"
+                Click="HelpButton_Click"
+                VerticalAlignment="Bottom" Margin="0,0,20,20">
+            <TextBlock FontSize="18" Margin="0,-3,0,0">ⓘ</TextBlock>
+        </Button>
     </Grid>
 </Window>

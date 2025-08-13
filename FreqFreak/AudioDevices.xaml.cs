@@ -13,10 +13,8 @@ namespace FreqFreak
     {
         private Color bgColor = Color.FromArgb(200, 26, 26, 26);
         public Dispatcher _audioDispatcher;
-        private NormalDragHandler dragHandler;
         public AudioDevices()
         {
-            dragHandler = new(this);
             InitializeComponent();
 
             Loaded += (_, __) =>
@@ -187,14 +185,12 @@ namespace FreqFreak
         // Window re-management
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            var offset = e.GetPosition(this);
-            //DragWorkaround.StartDragging(this, offset);
-            dragHandler.BeginDrag(e);
+            DragMove();
         }
 
         private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            dragHandler.EndDrag();
+            //dragHandler.EndDrag();
         }
 
         private Point _dragStart;

@@ -7,6 +7,7 @@
         xmlns:freq="FreqFreak"
         mc:Ignorable="d"
         WindowStartupLocation="CenterScreen"
+        xmlns:vortice="clr-namespace:Vortice.Wpf;assembly=Vortice.Wpf"
         Title="MainWindow" Height="450" Width="800">
     <local:NoLayoutClipGrid x:Name="MainGrid" RenderTransformOrigin="0.5,0.5" ClipToBounds="False">
         <local:NoLayoutClipGrid.RenderTransform>
@@ -16,15 +17,14 @@
                 <TranslateTransform x:Name="MainGridTranslation"/>
             </TransformGroup>
         </local:NoLayoutClipGrid.RenderTransform>
-        <Canvas x:Name="VisCanvas" 
-                Margin="0,0,0,0" 
-                VerticalAlignment="Center"
-                HorizontalAlignment="Center">
-            
-        </Canvas>
-        <local:OscilloscopeControl x:Name="OscView" Margin="0,0,0,0" Visibility="Collapsed">
-            
-        </local:OscilloscopeControl>
+        <local:FrequencyVorticeControl x:Name="VisCanvas" Margin="0,0,0,0" Visibility="Visible"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center"
+                                       ClipToBounds="False"/>
+        <local:OscilloscopeVorticeControl x:Name="OscView" Margin="0,0,0,0" Visibility="Visible"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Center"
+                                          ClipToBounds="False"/>
         <Rectangle HorizontalAlignment="Stretch"
                    Height="2"
                    Visibility="Collapsed"

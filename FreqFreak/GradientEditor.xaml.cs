@@ -1,5 +1,6 @@
 ﻿using ColorPicker;
 using LibMaterial.NET;
+using NAudio.SoundFont;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -28,10 +29,8 @@ namespace FreqFreak
         public bool PeakEditing = false;
         private Color bgColor = Color.FromArgb(200, 26, 26, 26);
         private Style styleCache = null;
-        public NormalDragHandler dragHandler;
         public GradientEditor()
         {
-            dragHandler = new(this);
             InitializeComponent();
             styleCache = (Style)this.FindResource("DefaultColorPickerStyle");
             var preset = Visualizer.InstanceOptions._customNoteGradientColors;
@@ -41,6 +40,8 @@ namespace FreqFreak
                 CreateItem(item, color);
                 ColorsList.Items.Add(item);
             }
+            ColorsTextInput.Text = string.Join(", ", preset.Select(color => color.ToString()));
+
             GradientDisplay.Fill = MainWindow.GetHorizontalGradientBrush(Visualizer.InstanceOptions._customNoteGradientColors);
             this.Activated += (s, e) =>
             {
@@ -292,12 +293,13 @@ namespace FreqFreak
         {
             //var offset = e.GetPosition(this);
             //DragWorkaround.StartDragging(this, offset);
-            dragHandler.BeginDrag(e);
+            //dragHandler.BeginDrag(e);
+            DragMove();
         }
 
         private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            dragHandler.EndDrag();
+            //dragHandler.EndDrag();
         }
 
         // Resize helper
@@ -428,6 +430,47 @@ namespace FreqFreak
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
 
+        }
+
+        private void ColorsTextInput_MouseEnter(object sender, MouseEventArgs e)
+        {
+            ColorsTextInput.Text = string.Join(", ", ColorsList.Items
+                .SourceCollection.Cast<ListViewItem>()
+                .Select(item => (item.Background as SolidColorBrush)?.Color)
+                .Where(color => color.HasValue)
+                .Select(color => color.Value.ToString()));
+            //ColorsTextInput.Height = 90;
+        }
+
+        private void ColorsTextInput_MouseLeave(object sender, MouseEventArgs e)
+        {
+            ColorsTextInput.Text = string.Join(", ", ColorsList.Items
+                .SourceCollection.Cast<ListViewItem>()
+                .Select(item => (item.Background as SolidColorBrush)?.Color)
+                .Where(color => color.HasValue)
+                .Select(color => color.Value.ToString()));
+        }
+
+        private void ColorsTextInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var hexCodes = ColorsTextInput.Text.Split(new[] { ",", "\n", " " }, StringSplitOptions.TrimEntries);
+            ColorsList.Items.Clear();
+            foreach (var hex in hexCodes)
+            {
+                if (string.IsNullOrWhiteSpace(hex)) continue;
+                try
+                {
+                    Color color = (Color)ColorConverter.ConvertFromString(hex);
+                    ListViewItem item = new ListViewItem();
+                    CreateItem(item, color);
+                    ColorsList.Items.Add(item);
+                }
+                catch (FormatException)
+                {
+                    return;
+                }
+            }
+            UpdateInstanceColors();
         }
     }
 }

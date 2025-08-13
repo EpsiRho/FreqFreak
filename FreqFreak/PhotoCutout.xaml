@@ -146,17 +146,7 @@
                                      TextChanged="Input_TextChanged"
                                      Style="{StaticResource WinUI3TextBoxStyle}"/>
                         </StackPanel>
-                    
-                        <StackPanel Grid.Column="1"
-                                    Grid.Row="2">
-                            <TextBlock Text="Bass Shake" 
-                                       Margin="7,5,5,0" />
-                            <TextBox x:Name="BassShakeInput" 
-                                     Margin="5,5,5,5" 
-                                     TextChanged="Input_TextChanged"
-                                     Style="{StaticResource WinUI3TextBoxStyle}"/>
-                        </StackPanel>
-                    
+
                         <StackPanel Grid.Column="0"
                                     Grid.Row="3">
                             <TextBlock Text="X Pos" 
@@ -177,8 +167,8 @@
                                      Style="{StaticResource WinUI3TextBoxStyle}"/>
                         </StackPanel>
                     
-                        <StackPanel Grid.Column="0"
-                                    Grid.Row="4">
+                        <StackPanel Grid.Column="1"
+                                    Grid.Row="2">
                             <TextBlock Text="Rotation" 
                                        Margin="7,5,5,0" />
                             <TextBox x:Name="RotationInput" 
@@ -194,6 +184,7 @@
                             <CheckBox Style="{StaticResource WinUI3CheckBoxStyle}"
                                       Margin="7,6,5,0" 
                                       Checked="AlwaysOnTopInput_Checked"
+                                      Unchecked="AlwaysOnTopInput_Unchecked"
                                       x:Name="AlwaysOnTopInput"/>
                         </StackPanel>
                     
@@ -211,5 +202,28 @@
                 </Grid>
             </GroupBox>
         </Grid>
+        <Popup x:Name="HelpPopup"
+               Placement="Top"
+               PlacementTarget="{Binding ElementName=HelpButton}"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               PopupAnimation="Fade">
+            <Border Style="{StaticResource WinUI3PopupContainerStyle}">
+                <Grid>
+                    <StackPanel Margin="0,0,0,0">
+                        <TextBlock Text="Allows you to place photo cutouts anywhere on screen." Foreground="White" FontSize="14"/>
+                        <TextBlock Text="Bass Scale, like in the visualizer settings, is based on the Peaks." Foreground="White" FontSize="14"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Popup>
+        <Button HorizontalAlignment="Right"
+                Style="{StaticResource TitleButtonStyle}"
+                Height="30"
+                x:Name="HelpButton"
+                Click="HelpButton_Click"
+                VerticalAlignment="Bottom" Margin="0,0,20,20">
+            <TextBlock FontSize="18" Margin="0,-3,0,0">ⓘ</TextBlock>
+        </Button>
     </Grid>
 </Window>

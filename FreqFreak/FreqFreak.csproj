@@ -24,11 +24,30 @@
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.3.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="PixiEditor.ColorPicker" Version="3.4.2" />
+    <PackageReference Include="Vortice.Direct2D1" Version="3.6.2" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
+    <PackageReference Include="Vortice.Direct3D9" Version="3.6.2" />
+    <PackageReference Include="Vortice.DirectX" Version="3.6.2" />
+    <PackageReference Include="Vortice.DXGI" Version="3.6.2" />
+    <PackageReference Include="Vortice.Win32" Version="2.2.7" />
+    <PackageReference Include="Vortice.Wpf" Version="3.6.2" />
     <PackageReference Include="ZstdNet" Version="1.4.5" />
 	  
   </ItemGroup>
 
-  <ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="ZstdNet" Version="1.4.5" ExcludeAssets="build" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(RuntimeIdentifier)'=='win-x64'">
+		<None Include="$(NuGetPackageRoot)zstdnet\1.4.5\build\x64\libzstd.dll" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(RuntimeIdentifier)'=='win-x86'">
+		<None Include="$(NuGetPackageRoot)zstdnet\1.4.5\build\x86\libzstd.dll" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+
+	<ItemGroup>
     <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
   </ItemGroup>
 
@@ -42,30 +61,11 @@
 
   <ItemGroup>
     <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
     <None Remove="Images\icon.png" />
     <None Remove="Images\icon2.png" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Images\icon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -99,6 +99,14 @@
     <Reference Include="NAudio.WinMM">
       <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.WinMM.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
   </ItemGroup>
 	
 </Project>

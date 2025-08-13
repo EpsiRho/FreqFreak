@@ -22,10 +22,8 @@ namespace FreqFreak
         DateTime StartTime = DateTime.Now;
         bool CanSeek = false;
         private Color bgColor = Color.FromArgb(200, 26, 26, 26);
-        private NormalDragHandler dragHandler;
         public FVZWindow()
         {
-            dragHandler = new(this);
             InitializeComponent();
             Loaded += (_, __) =>
             {
@@ -463,12 +461,12 @@ namespace FreqFreak
         {
             //var offset = e.GetPosition(this);
             //DragWorkaround.StartDragging(this, offset);
-            dragHandler.BeginDrag(e);
+            DragMove();
         }
 
         private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            dragHandler.EndDrag();
+            //dragHandler.EndDrag();
         }
 
         // Resize helper
@@ -561,6 +559,11 @@ namespace FreqFreak
         private void ExitButton_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
+        }
+
+        private void HelpButton_Click(object sender, RoutedEventArgs e)
+        {
+            HelpPopup.IsOpen = true;
         }
     }
 }

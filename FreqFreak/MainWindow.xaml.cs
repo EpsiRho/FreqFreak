@@ -54,14 +54,10 @@ namespace FreqFreak
         public static FVZPlayer FVZPlayer { get; set; } = new FVZPlayer();
 
         private Rectangle[] _bars = Array.Empty<Rectangle>();
-        private Rectangle[]? _peakBars; // peaks for top & bottom modes
-        private Rectangle[]? _peakBarsLow; // centered low peaks
-        private Rectangle[]? _peakBarsHigh; // centered high peaks
 
-        private double[] _peaks = Array.Empty<double>();
-        private double[] _peaksRight = Array.Empty<double>();
+        public static double[] _peaks = Array.Empty<double>();
+        public static double[] _peaksRight = Array.Empty<double>();
         private object _peakLock = new(); 
-        private object _oscLock = new(); 
         private Task _peakDecayTask;
         private Task _ColorMoveTask;
 
@@ -88,7 +84,6 @@ namespace FreqFreak
         public NormalDragHandler dragHandler;
         public PopupMenuItem toggleVis = new PopupMenuItem();
 
-        double max = 0; // The maximum amplitude seen recently (decreases with DecaySpeed). Used for gradient by height
 
         // Window + App setup
         public MainWindow()
@@ -143,7 +138,7 @@ namespace FreqFreak
                     {
                         _peakDecayTask = Task.Run(PeakDecayLoop, _cts.Token);
                     }
-                    if (_peakDecayTask == null || _peakDecayTask.IsCompleted)
+                    if (_ColorMoveTask == null || _ColorMoveTask.IsCompleted)
                     {
                         _ColorMoveTask = Task.Run(ManageColorMove, _clrCts.Token);
                     }
@@ -158,7 +153,6 @@ namespace FreqFreak
                 CreateNewOptionsWindow();
             };
         }
-
         private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if(e.Key == System.Windows.Input.Key.Up)
@@ -178,7 +172,6 @@ namespace FreqFreak
                 this.Left++;
             }
         }
-
         private void ConfigureWindow()
         {
             Title = "Visualizer Overlay";
@@ -189,6 +182,8 @@ namespace FreqFreak
             Topmost = true;
         }
 
+
+        // Tool Window Creators
         public void CreateNewOptionsWindow()
         {
             if (Visualizer.OptionsWindow != null)
@@ -231,7 +226,6 @@ namespace FreqFreak
             t.IsBackground = true;
             t.Start();
         }
-
         public void CreateNewAudioWindow()
         {
             if (Visualizer.AudioDevicesWindow != null)
@@ -389,7 +383,6 @@ namespace FreqFreak
             t.IsBackground = true;
             t.Start();
         }
-
         public void CreateNewPhotoCutoutWindow()
         {
             if (Visualizer.PhotoCutoutWindow != null)
@@ -440,6 +433,7 @@ namespace FreqFreak
             t.Start();
         }
 
+        // Window Position Helpers
         public (double left, double top) GetWindowPosition(Window window, Dispatcher dispatcher, double newWindowWidth, double newWindowHeight)
         {
             double left = -1;
@@ -542,7 +536,6 @@ namespace FreqFreak
 
             return (left, top);
         }
-
         public static bool DoesRectOverlapAny(List<Rect> rectList, Rect target)
         {
             foreach (var rect in rectList)
@@ -554,6 +547,7 @@ namespace FreqFreak
             }
             return false;
         }
+
 
         // TrayIcon Management
         public static Color GenerateTimeBasedColor()
@@ -666,9 +660,6 @@ namespace FreqFreak
                             Process.Start("FreqFreak.exe");
                         }),
                         new PopupMenuSeparator(),
-                        new PopupMenuItem("Toggle Peaks", (_, _) =>{
-                            Visualizer.InstanceOptions._showPeaks = !Visualizer.InstanceOptions._showPeaks;
-                        }),
                         new PopupMenuItem("Import Config File", (_, _) =>{
                             Dispatcher.Invoke(() =>
                             {
@@ -741,8 +732,8 @@ namespace FreqFreak
                 : throw new ArgumentException($"Embedded resource '{fileName}' not found.");
         }
 
+
         // Color helper funcs
-        // Color is stupid, you'd think the system color objects would have better support for moving them around
         public static Color ColorFromHSV(double hue, double saturation, double value, byte alpha = 255)
         {
             int hi = Convert.ToInt32(Math.Floor(hue / 60)) % 6;
@@ -829,7 +820,6 @@ namespace FreqFreak
             }
             return gradient;
         }
-
         public static Color GetRandomColor() => Color.FromArgb(255, (byte)_rng.Next(256), (byte)_rng.Next(256), (byte)_rng.Next(256));
         public static void RGBtoHSV(System.Drawing.Color color, out double hue, out double saturation, out double value)
         {
@@ -845,6 +835,7 @@ namespace FreqFreak
 
             saturation = (max == 0) ? 0 : (max - min) / max;
         }
+
 
         // Decays the peak bars at the decay speed
         private void PeakDecayLoop()
@@ -926,7 +917,7 @@ namespace FreqFreak
                         }
                     }
 
-                    max = curMax;
+                    //max = curMax;
                     Thread.Sleep(16);
                     if (_failure)
                     {
@@ -940,6 +931,7 @@ namespace FreqFreak
                 }
             }
         }
+
 
         // Render funcs
         Random rand = new Random();
@@ -984,9 +976,58 @@ namespace FreqFreak
 
             return (movementX, movementY);
         }
+        public static Rect CalculateBoundingBox(Point[] corners, float angleDegrees)
+        {
+            // Rotate all corners
+            Point[] rotatedCorners = new Point[4];
+            for (int i = 0; i < corners.Length; i++)
+            {
+                rotatedCorners[i] = RotatePoint((float)corners[i].X, (float)corners[i].Y, angleDegrees);
+            }
+
+            // Find min and max x and y
+            float minX = float.MaxValue, maxX = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
+
+            foreach (var corner in rotatedCorners)
+            {
+                minX = (float)Math.Min(minX, corner.X);
+                maxX = (float)Math.Max(maxX, corner.X);
+                minY = (float)Math.Min(minY, corner.Y);
+                maxY = (float)Math.Max(maxY, corner.Y);
+            }
+
+            float boundingWidth = maxX - minX;
+            float boundingHeight = maxY - minY;
+
+            return new Rect
+            {
+                Width = boundingWidth,
+                Height = boundingHeight,
+                X = minX,
+                Y = minY
+            };
+        }
+        public static Point RotatePoint(float x, float y, float angleDegrees)
+        {
+            double rad = angleDegrees * Math.PI / 180.0;
+            float cos = (float)Math.Cos(rad);
+            float sin = (float)Math.Sin(rad);
+
+            // Apply rotation matrix
+            // [x'] = [cos θ  -sin θ] [x]
+            // [y'] = [sin θ   cos θ] [y]
+            float newX = x * cos - y * sin;
+            float newY = x * sin + y * cos;
+
+            return new Point(newX, newY);
+        }
+
+
+        // Render Pipe
         private void OnRender(object? sender, EventArgs e)
         {
-            displayFpsMeter.Tick();
+            //displayFpsMeter.Tick();
             if(NormalDragHandler.IsDragging)
             {
                 return;
@@ -1014,20 +1055,6 @@ namespace FreqFreak
                     {
                         frame = Visualizer.GetFrame();
                     }
-                }
-                else
-                {
-                    var fftSize = Visualizer._oscilloscopeBuffer.Count;
-                    frame = new double[fftSize];
-                    frameR = new double[fftSize];
-
-                    for (int i = 0; i < fftSize; i++)
-                    {
-                        var sample = Visualizer._oscilloscopeBuffer.Dequeue(); // Remove used samples
-                        frame[i] = sample.L;
-                        frameR[i] = sample.R;
-                    }
-                    Visualizer._oscilloscopeBuffer.Clear();
                 }
             }
 
@@ -1068,30 +1095,38 @@ namespace FreqFreak
                 }
                 else
                 {
-                    var binCenters = PitchDetector.CalculateBinCenters(binEdges);
-                    var pitchInfo = PitchDetector.DetectPitch(_peaks, binCenters);
-                    PitchText = pitchInfo.note;
-                    PitchFreq = pitchInfo.frequency;
+                    try
+                    {
+                        var arr = _peaks.ToArray();
+                        var arr2 = _peaksRight.ToArray();
+                        var binCenters = PitchDetector.CalculateBinCenters(binEdges);
+                        var pitchInfo = PitchDetector.DetectPitch(arr, binCenters);
+                        PitchText = pitchInfo.note;
+                        PitchFreq = pitchInfo.frequency;
 
-                    var BassAmplitudeL = PitchDetector.DetectBassAmplitude(_peaks, binCenters, Visualizer.InstanceOptions._height);
-                    var BassAmplitudeR = PitchDetector.DetectBassAmplitude(_peaksRight, binCenters, Visualizer.InstanceOptions._height);
-                    BassAmplitude = (BassAmplitudeL + BassAmplitudeR) / 2;
+                        var BassAmplitudeL = PitchDetector.DetectBassAmplitude(arr, binCenters, Visualizer.InstanceOptions._height);
+                        var BassAmplitudeR = PitchDetector.DetectBassAmplitude(arr2, binCenters, Visualizer.InstanceOptions._height);
+                        BassAmplitude = (BassAmplitudeL + BassAmplitudeR) / 2;
+                    }
+                    catch (Exception)
+                    {
+
+                    }
                 }
                 
             }
 
             try
             {
-                if (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Oscilloscope)
+                if (Visualizer.InstanceOptions._visualizationMode != VisualizationMode.Oscilloscope)
                 {
-                    if(frame == null || frameR == null) return;
-                    OscView.UpdatePlane(frame, frameR);
+                    if (Visualizer.UpdateSettings)
+                    {
+                        return;
+                    }
+                    VisCanvas.UpdatePlane(frame, frameR);
                 }
-                else
-                {
-                    UpdateBars(frame, frameR);
-                    UpdatePeakRectangles();
-                }
+
                 CenterLine.Fill = _color3;
                 UpdateRotation();
             }
@@ -1100,9 +1135,83 @@ namespace FreqFreak
 
             }
         }
+        private void ResizeBars()
+        {
+            try
+            {
+                Visualizer.UpdateSettings = false;
+                var opts = Visualizer.InstanceOptions;
+
+                _color1 = new SolidColorBrush(opts._barColor1);
+                _color2 = new SolidColorBrush(opts._barColor2);
+                _color3 = new SolidColorBrush(opts._peakColor);
+                _color4 = new SolidColorBrush(opts._peakColor2);
+                _gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
+                _peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
+                _colorGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customNoteGradientColors);
+                _colorPeaksGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customPeakNoteGradientColors);
+                colorArrayGradient = Visualizer.InstanceOptions._customNoteGradientColors;
+                colorPeakArrayGradient = Visualizer.InstanceOptions._customPeakNoteGradientColors;
+
+                CreateBars();
+            }
+            catch (Exception)
+            {
+
+            }
+        }
+        private void CreateBars()
+        {
+            var opts = Visualizer.InstanceOptions;
+            int count = opts._bars;
+
+            if(opts._channelMode == ChannelMode.Stereo && (opts._visualizationMode == VisualizationMode.OuterCircle || opts._visualizationMode == VisualizationMode.InnerCircle))
+            {
+                _bars = new Rectangle[count * 2];
+                _peaks = new double[count];
+                //VisCanvas.Children.Clear();
+
+                for (int i = 0; i < count * 2; i++)
+                {
+                    var rect = new Rectangle
+                    {
+                        Width = opts._barWidth,
+                        Height = opts._minHeight,
+                        IsHitTestVisible = false
+                    };
+                    Canvas.SetLeft(rect, i * (opts._barWidth + opts._barGap) + 1);
+                    //VisCanvas.Children.Add(rect);
+                    _bars[i] = rect;
+                }
+            }
+            else
+            {
+                _bars = new Rectangle[count];
+                _peaks = new double[count];
+                //VisCanvas.Children.Clear();
+
+                for (int i = 0; i < count; i++)
+                {
+                    var rect = new Rectangle
+                    {
+                        Width = opts._barWidth,
+                        Height = opts._minHeight,
+                        IsHitTestVisible = false
+                    };
+                    Canvas.SetLeft(rect, i * (opts._barWidth + opts._barGap) + 1);
+                    //VisCanvas.Children.Add(rect);
+                    _bars[i] = rect;
+                }
+            }
+
+            var old = _peaks;
+            _peaksRight = new double[count];
+            _peaksRight = new double[count];
+            Array.Copy(old, _peaks, Math.Min(old.Length, count));
+        }
         private void UpdateRotation()
         {
-            double angleDegrees = Visualizer.InstanceOptions._rotation; 
+            float angleDegrees = (float)Visualizer.InstanceOptions._rotation;
             double angleRadians = angleDegrees * Math.PI / 180;
 
             double barWidth = Visualizer.InstanceOptions._barWidth;
@@ -1126,14 +1235,25 @@ namespace FreqFreak
             //var normalized = BassAmplitude / Visualizer.InstanceOptions._height;
             var scale = 1 + (BassAmplitude * (Visualizer.InstanceOptions._bassScale - 1));
 
+            var boundBox = CalculateBoundingBox(new Point[]
+            {
+                new Point(0,0),
+                new Point(originalWidth,0),
+                new Point(0,originalHeight),
+                new Point(originalWidth,originalHeight),
+            }, angleDegrees);
+
+            newWidth = boundBox.Width;
+            newHeight = boundBox.Height;
+
             switch (Visualizer.InstanceOptions._visualizationMode)
             {
                 case VisualizationMode.OuterCircle:
                     MainGrid.Width = (totalRadius * 2) * Visualizer.InstanceOptions._bassScale;
                     MainGrid.Height = (totalRadius * 2) * Visualizer.InstanceOptions._bassScale;
                     Width = MainGrid.Width;
-                    Height = MainGrid.Height ;
-                    MainGridRotation.Angle = angleDegrees;
+                    Height = MainGrid.Height;
+                    //MainGridRotation.Angle = angleDegrees;
                     MainGridScale.ScaleX = scale;
                     MainGridScale.ScaleY = scale;
                     VisCanvas.Width = MainGrid.Width;
@@ -1145,900 +1265,56 @@ namespace FreqFreak
                     MainGrid.Height = (radius * 2) * Visualizer.InstanceOptions._bassScale;
                     Width = MainGrid.Width;
                     Height = MainGrid.Height;
-                    MainGridRotation.Angle = angleDegrees;
+                    //MainGridRotation.Angle = angleDegrees;
                     MainGridScale.ScaleX = scale;
                     MainGridScale.ScaleY = scale;
                     VisCanvas.Width = MainGrid.Width;
                     VisCanvas.Height = MainGrid.Height;
+                    (MainGridTranslation.X, MainGridTranslation.Y) = GetRandomXY();
                     break;
                 case VisualizationMode.Oscilloscope:
                     MainGrid.Width = barCount * Visualizer.InstanceOptions._bassScale;
                     MainGrid.Height = originalHeight * Visualizer.InstanceOptions._bassScale;
                     Width = barCount * Visualizer.InstanceOptions._bassScale;
                     Height = originalHeight * Visualizer.InstanceOptions._bassScale;
-                    MainGridRotation.Angle = angleDegrees;
+                    //MainGridRotation.Angle = angleDegrees;
                     MainGridScale.ScaleX = scale;
                     MainGridScale.ScaleY = scale;
                     OscView.Width = MainGrid.Width;
                     OscView.Height = MainGrid.Height;
+                    (MainGridTranslation.X, MainGridTranslation.Y) = GetRandomXY();
                     break;
                 default:
                     MainGrid.Width = newWidth * scale;
                     MainGrid.Height = newHeight * scale;
                     Width = newWidth * Visualizer.InstanceOptions._bassScale;
                     Height = newHeight * Visualizer.InstanceOptions._bassScale;
-                    MainGridRotation.Angle = angleDegrees;
+                    //MainGridRotation.Angle = angleDegrees;
                     MainGridScale.ScaleX = scale;
                     MainGridScale.ScaleY = scale;
-                    VisCanvas.Width = originalWidth;
-                    VisCanvas.Height = originalHeight;
+                    VisCanvas.Width = newWidth;
+                    VisCanvas.Height = newHeight;
+                    (MainGridTranslation.X, MainGridTranslation.Y) = GetRandomXY();
                     break;
             }
         }
 
-        private void UpdateBars(double[] frame, double[] frameRight = null)
+
+        // Color Animation + Delta time helpers for moving colors at the rate specified
+        float _progress = 0;
+        static Stopwatch dTimeWatch = new Stopwatch();
+        static Stopwatch cfWatch = new Stopwatch();
+        static double lastElapsed = 0;
+        public static double GetDeltaTime(bool markFrame = true)
         {
-            var opts = Visualizer.InstanceOptions;
-            double height = opts._height;
-            double min = opts._minHeight;
-            double minHalf = min * 0.5;
-
-            var pos = opts._visualizationMode;
-            var channels = opts._channelMode;
-            bool stereo = channels == ChannelMode.Stereo;
-
-            double cx = VisCanvas.ActualWidth * 0.5;
-            double cy = VisCanvas.ActualHeight * 0.5;
-            double halfBar = opts._barWidth * 0.5;
-            double barWidth = opts._barWidth;
-            double barGap = opts._barGap;
-            int barCount = opts._bars;
-
-            double attack = opts._attackSpeed;
-            double decay = opts._decaySpeed;
-            double canvasHalfHeight = (pos == VisualizationMode.Center) ? VisCanvas.ActualHeight * 0.5 : 0.0;
-
-            // Circle constants
-            int doubledBars = barCount * 2;
-            double combinedWidthGap = barWidth + barGap;
-            double radiusStereo = stereo ? (combinedWidthGap * doubledBars) / (2 * Math.PI) : 0.0;
-            double radiusMono = !stereo ? (combinedWidthGap * barCount) / (2 * Math.PI) : 0.0;
-            double angleStepStereo = stereo ? (2 * Math.PI) / doubledBars : 0.0;
-            double angleStepMono = !stereo ? (2 * Math.PI) / barCount : 0.0;
-            double rotationOffset = opts._rotation;
-
-            // Scale incoming data & find local max 
-            int barLen = Math.Min(frame.Length, _bars.Length);
-            double localMax = 0.0;
-
-            for (int i = 0; i < barLen; i++)
+            double currentElapsedMs = dTimeWatch.Elapsed.TotalMilliseconds;
+            double deltaTime = (currentElapsedMs - lastElapsed) / 1000.0;
+            if (markFrame)
             {
-                double valL = frame[i] *= height;
-                if (valL > localMax) localMax = valL;
-
-                if (stereo)
-                {
-                    double valR = frameRight[i] *= height;
-                    if (valR > localMax) localMax = valR;
-                }
+                lastElapsed = currentElapsedMs;
             }
-
-            // Trim overflow frames (can occur after settings changes or in fvz mode if the fvz file bars != set display bars)
-            if (frame.Length > _bars.Length)
-            {
-                Array.Resize(ref frame, _bars.Length);
-            }
-
-            if (_lineSwiitch)
-            {
-                _lineSwiitch = false;
-                CreateBars();
-                ShowPeakBars();
-            }
-
-            // Update each bar 
-            List<Point> linePoints = new List<Point>();
-            List<Point> linePoints2 = new List<Point>();
-            for (int i = 0; i < barLen; i++)
-            {
-                Rectangle rect = _bars[i];
-
-                double current = 0.0;
-                double currentLeft = 0.0;
-                double currentRight = 0.0;
-
-                if (stereo)
-                {
-                    double targetLeft = frameRight[i] + minHalf;
-                    double targetRight = frame[i] + minHalf;
-
-                    currentLeft = double.IsNaN(rect.StrokeMiterLimit) ? 0.0 : rect.StrokeMiterLimit;
-                    currentRight = double.IsNaN(rect.StrokeDashOffset) ? 0.0 : rect.StrokeDashOffset;
-
-                    double speedL = targetLeft > currentLeft ? attack : decay;
-                    double speedR = targetRight > currentRight ? attack : decay;
-
-                    currentLeft = Math.Clamp(currentLeft + (targetLeft - currentLeft) * speedL, 0.0, height);
-                    currentRight = Math.Clamp(currentRight + (targetRight - currentRight) * speedR, 0.0, height);
-
-                    current = (currentLeft + currentRight) * 0.5;
-                    if (current < 1.0) current = 0.0;
-                    if (currentLeft < 1.0) currentLeft = 0.0;
-                    if (currentRight < 1.0) currentRight = 0.0;
-
-                    rect.StrokeMiterLimit = currentLeft;
-                    rect.Height = current;
-                    rect.StrokeDashOffset = currentRight;
-                }
-                else
-                {
-                    double target = frame[i] + min;
-                    current = double.IsNaN(rect.Height) ? 0.0 : rect.Height;
-
-                    double speed = target > current ? attack : decay;
-                    current = Math.Clamp(current + (target - current) * speed, 0.0, height);
-                    if (current < 1.0) current = 0.0;
-
-                    rect.Height = current;
-                }
-
-                // Positioning 
-                switch (pos)
-                {
-                    case VisualizationMode.Bottom:
-                        if (Visualizer.InstanceOptions._showLines)
-                        {
-                            linePoints.Add(new Point((barWidth + barGap) * i, height - current));
-                            if (_peaks[i] < current) _peaks[i] = current;
-                            continue;
-                        }
-
-                        Canvas.SetBottom(rect, 0.0);
-                        Canvas.SetTop(rect, double.NaN);
-                        if (_peaks[i] < current) _peaks[i] = current;
-                        SetBarColour(rect, i, barLen, current, localMax);
-                        break;
-
-                    case VisualizationMode.Center:
-                        if (stereo)
-                        {
-                            double percentBelow = currentLeft / (currentLeft + currentRight + double.Epsilon);
-                            double percentAbove = currentRight / (currentLeft + currentRight + double.Epsilon);
-                            double leftH = current * percentBelow; 
-                            double rightH = current * percentAbove;
-
-                            double offsetDown = canvasHalfHeight - leftH;
-
-                            if (Visualizer.InstanceOptions._showLines)
-                            {
-                                linePoints.Add(new Point((barWidth + barGap) * i, canvasHalfHeight - (current * percentAbove)));
-                                linePoints2.Add(new Point((barWidth + barGap) * i, canvasHalfHeight + (current * percentBelow)));
-                                if (_peaks[i] < current) _peaks[i] = current;
-                                if (_peaksRight[i] < currentRight) _peaksRight[i] = currentRight;
-                                continue;
-                            }
-
-                            Canvas.SetBottom(rect, offsetDown);
-                            Canvas.SetTop(rect, double.NaN);
-
-                            if (_peaks[i] < currentRight) _peaks[i] = currentRight;
-                            if (_peaksRight[i] < currentLeft) _peaksRight[i] = currentLeft;
-                            SetBarColour(rect, i, barLen, current, localMax);
-                        }
-                        else
-                        {
-                            if (Visualizer.InstanceOptions._showLines)
-                            {
-                                linePoints.Add(new Point((barWidth + barGap) * i, canvasHalfHeight + (current * 0.5)));
-                                linePoints2.Add(new Point((barWidth + barGap) * i, canvasHalfHeight - (current * 0.5)));
-                                if (_peaks[i] < current) _peaks[i] = current;
-                                continue;
-                            }
-                            Canvas.SetBottom(rect, canvasHalfHeight - (current * 0.5));
-                            Canvas.SetTop(rect, double.NaN);
-                            if (_peaks[i] < current) _peaks[i] = current;
-                            SetBarColour(rect, i, barLen, current, localMax);
-                        }
-                        break;
-
-                    case VisualizationMode.Top:
-                        if (Visualizer.InstanceOptions._showLines)
-                        {
-                            linePoints.Add(new Point((barWidth + barGap) * i, current));
-                            if (_peaks[i] < current) _peaks[i] = current;
-                            continue;
-                        }
-                        Canvas.SetTop(rect, 0.0);
-                        Canvas.SetBottom(rect, double.NaN);
-                        if (_peaks[i] < current) _peaks[i] = current;
-                        SetBarColour(rect, i, barLen, current, localMax);
-                        break;
-
-                    case VisualizationMode.OuterCircle:
-                    case VisualizationMode.InnerCircle:
-
-                        if (stereo)
-                        {
-                            double angle = ((i + 0.5) * angleStepStereo) - PI_OVER_TWO;
-                            double cos = Math.Cos(angle);
-                            double sin = Math.Sin(angle);
-                            double cosR = -cos;
-                            double sinR = sin;
-
-                            double x = cx + radiusStereo * cos;
-                            double y = cy + radiusStereo * sin;
-                            double xMirror = (cx * 2.0) - x;
-                            double sgn = (pos == VisualizationMode.OuterCircle) ? 1.0 : -1.0;
-
-
-                            Rectangle rectMirror = _bars[_bars.Length - 1 - i];
-
-                            rect.Height = currentLeft;
-                            rectMirror.Height = currentRight;
-
-                            if (Visualizer.InstanceOptions._showLines)
-                            {
-                                linePoints.Add(new Point(x + sgn * cos * currentLeft, y + sgn * sin * currentLeft)); // Needs to be current Height of left bars
-                                linePoints2.Add(new Point(xMirror + sgn * cosR * currentRight, y + sgn * sinR * currentRight)); // Needs to be current Height of right bars
-                                if (_peaks[i] < current) _peaks[i] = currentLeft;
-                                if (_peaksRight[i] < currentRight) _peaksRight[i] = currentRight;
-                                continue;
-                            }
-
-                            Canvas.SetLeft(rect, x - halfBar);
-                            Canvas.SetLeft(rectMirror, xMirror - halfBar);
-
-                            if (pos == VisualizationMode.OuterCircle)
-                            {
-                                Canvas.SetTop(rect, y);
-                                rect.RenderTransform = new RotateTransform(angle * 180.0 / Math.PI - 90.0, halfBar, 0.0);
-
-                                Canvas.SetTop(rectMirror, y);
-                                rectMirror.RenderTransform = new RotateTransform((-angle + Math.PI) * 180.0 / Math.PI - 90.0, halfBar, 0.0);
-                                if (_peaks[i] < currentLeft) _peaks[i] = currentLeft;
-                                if (_peaksRight[i] < currentRight) _peaksRight[i] = currentRight;
-                            }
-                            else  // InnerCircle
-                            {
-                                Canvas.SetTop(rect, y - currentLeft);
-                                rect.RenderTransform = new RotateTransform(angle * 180.0 / Math.PI - 90.0, halfBar, currentLeft);
-
-                                Canvas.SetTop(rectMirror, y - currentRight);
-                                rectMirror.RenderTransform = new RotateTransform((-angle + Math.PI) * 180.0 / Math.PI - 90.0, halfBar, currentRight);
-
-                                if (_peaks[i] < currentLeft) _peaks[i] = currentLeft;
-                                if (_peaksRight[i] < currentRight) _peaksRight[i] = currentRight;
-                            }
-
-                            SetBarColour(rect, i, barLen, currentLeft, localMax);
-                            SetBarColour(rectMirror, i, barLen, currentRight, localMax);
-
-                        }
-                        else  // Mono circular
-                        {
-                            double angle = (i * angleStepMono - PI_OVER_TWO) + rotationOffset;
-                            double cos = Math.Cos(angle);
-                            double sin = Math.Sin(angle);
-                            double x = cx + radiusMono * cos;
-                            double y = cy + radiusMono * sin;
-
-                            double sgn = (pos == VisualizationMode.OuterCircle) ? 1.0 : -1.0;
-
-                            if (Visualizer.InstanceOptions._showLines)
-                            {
-                                linePoints.Add(new Point(x + sgn * cos * current, y + sgn * sin * current)); // Needs to be current Height of left bars
-                                if (_peaks[i] < current) _peaks[i] = current;
-                                if (_peaksRight[i] < currentRight) _peaksRight[i] = currentRight;
-                                continue;
-                            }
-
-                            Canvas.SetLeft(rect, x - halfBar);
-
-                            if (pos == VisualizationMode.OuterCircle)
-                            {
-                                Canvas.SetTop(rect, y);
-                                rect.RenderTransform = new RotateTransform(angle * 180.0 / Math.PI - 90.0, halfBar, 0.0);
-                            }
-                            else
-                            {
-                                Canvas.SetTop(rect, y - current);
-                                rect.RenderTransform = new RotateTransform(angle * 180.0 / Math.PI - 90.0, halfBar, current);
-                            }
-
-                            if (_peaks[i] < current) _peaks[i] = current;
-                            SetBarColour(rect, i, barLen, current, localMax);
-                        }
-                        break;
-                }
-
-                // Color update 
-            }
-            if (Visualizer.InstanceOptions._showLines)
-            {
-                VisCanvas.Children.Clear();
-                switch (pos)
-                {
-                    case VisualizationMode.Bottom:
-                    case VisualizationMode.Top:
-                        DrawSmoothCurve(linePoints);
-                        break;
-                    case VisualizationMode.OuterCircle:
-                    case VisualizationMode.InnerCircle:
-                        if(linePoints2.Count() > 0)
-                        {
-                            linePoints2.Reverse();
-                            linePoints.AddRange(linePoints2);
-                            linePoints.Add(linePoints.First());
-                            DrawSmoothCurve(linePoints);
-                        }
-                        else
-                        {
-                            linePoints.Add(linePoints.First());
-                            DrawSmoothCurve(linePoints);
-                        }
-                        break;
-
-                    case VisualizationMode.Center:
-                        //DrawSmoothCurve(linePoints);
-                        //DrawSmoothCurve(linePoints2);
-                        linePoints2.Reverse();
-                        linePoints.AddRange(linePoints2);
-                        DrawSmoothCurve(linePoints);
-                        break;
-                }
-            }
-
-            //max = localMax;
+            return deltaTime;
         }
-        public void DrawSmoothCurve(List<Point> points)
-        {
-            if (points.Count < 2)
-                return;
-
-            var pathFigure = new PathFigure { StartPoint = points[0] };
-            var segments = new PathSegmentCollection();
-
-            for (int i = 0; i < points.Count - 1; i++)
-            {
-                Point p0 = i > 0 ? points[i - 1] : points[i];
-                Point p1 = points[i];
-                Point p2 = points[i + 1];
-                Point p3 = i < points.Count - 2 ? points[i + 2] : p2;
-
-                // Catmull-Rom to Bezier conversion
-                Point cp1 = new Point(
-                    p1.X + (p2.X - p0.X) / 6,
-                    p1.Y + (p2.Y - p0.Y) / 6);
-
-                Point cp2 = new Point(
-                    p2.X - (p3.X - p1.X) / 6,
-                    p2.Y - (p3.Y - p1.Y) / 6);
-
-                segments.Add(new BezierSegment(cp1, cp2, p2, true));
-            }
-
-            pathFigure.Segments = segments;
-            var geometry = new PathGeometry(new[] { pathFigure });
-
-            Brush brush = null;
-            switch (Visualizer.InstanceOptions._barColorType)
-            {
-                case ColorMode.SolidColor:
-                    brush = _color1;
-                    break;
-
-                case ColorMode.DualColorVertical:
-                    brush = _gradient;
-                    break;
-
-                case ColorMode.DualColorHorizontal:
-                    brush = GetHorizontalGradientBrush(new[] { _color1.Color, _color2.Color });
-                    break;
-
-                case ColorMode.DualColorHeight:
-                    brush = new SolidColorBrush(
-                        Visualizer.GetGradientColor(new[] { _color1.Color, _color2.Color }, (double)max / Visualizer.InstanceOptions._height));
-                    break;
-                case ColorMode.GradientVertical:
-                    brush = _colorGradientBrush;
-                    break;
-                case ColorMode.GradientHorizontal:
-                    brush = GetHorizontalGradientBrush(colorArrayGradient);
-                    break;
-                case ColorMode.GradientHeight:
-                    brush = new SolidColorBrush(
-                        Visualizer.GetGradientColor(colorArrayGradient, (double)max / Visualizer.InstanceOptions._height));
-                    break;
-                case ColorMode.GradientPitch: // Peak rainbow
-                    brush = new SolidColorBrush(
-                        PitchDetector.GetPitchColor(PitchFreq, Visualizer.InstanceOptions._customNoteGradientColors));
-                    break;
-                case ColorMode.DualColorPitch: // Peak gradient
-                    brush = new SolidColorBrush(
-                        PitchDetector.GetPitchColor(PitchFreq, new[] { Visualizer.InstanceOptions._barColor1, Visualizer.InstanceOptions._barColor2 }));
-                    break;
-                case ColorMode.GradientFrequency: // Frequency rainbow
-                    brush = new SolidColorBrush(
-                        Visualizer.GetGradientColor(
-                            colorArrayGradient,
-                            (PitchFreq / 2200) - 0.03)); ;
-                    break;
-                case ColorMode.DualColorFrequency: // Frequency gradient
-                    brush = new SolidColorBrush(
-                        Visualizer.GetGradientColor(
-                            new[] { Visualizer.InstanceOptions._barColor1, Visualizer.InstanceOptions._barColor2 },
-                            (PitchFreq / 2200) - 0.03)); ;
-                    break;
-            }
-
-            var path = new System.Windows.Shapes.Path
-            {
-                Stroke = brush,
-                StrokeThickness = 2,
-                Data = geometry
-            };
-            
-            VisCanvas.Children.Add(path);
-        }
-
-        private static RotateTransform EnsureRotateTransform(Rectangle r)
-        {
-            if (r.RenderTransform is RotateTransform rt) return rt;
-            rt = new RotateTransform();
-            r.RenderTransform = rt;
-            return rt;
-        }
-        private const double DEG = 180.0 / Math.PI;
-        private const double PI_OVER_TWO = Math.PI / 2;
-        private void UpdatePeakRectangles()
-        {
-            var opts = Visualizer.InstanceOptions;
-            if (!opts._showPeaks || Visualizer.UpdatePeaks)
-            {
-                Visualizer.UpdatePeaks = false;
-                if (_peakBars == null && _peakBarsLow == null && _peakBarsHigh == null) return;
-                RemovePeakBars();
-                return;
-            }
-            if (_peakBars == null && _peakBarsLow == null && _peakBarsHigh == null) ShowPeakBars();
-
-            double min = opts._minHeight;
-            var pos = opts._visualizationMode;
-            var channels = opts._channelMode;
-            bool stereo = channels == ChannelMode.Stereo;
-
-            double barWidth = opts._barWidth;
-            double barGap = opts._barGap;
-            double halfBar = barWidth * 0.5;
-            double stepX = barWidth + barGap;
-            int barCount = opts._bars;
-            double leftX = 1.0;
-
-            Rectangle[] barArr = _peakBars;
-
-            switch (pos)
-            {
-                // Bottom / Top
-                case VisualizationMode.Bottom:
-                case VisualizationMode.Top:
-                        if (barArr == null) return;
-                        bool useTop = pos == VisualizationMode.Top;
-
-                        for (int i = 0; i < barArr.Length; i++, leftX += stepX)
-                        {
-                            var peak = barArr[i];
-
-                            SetBarColour(peak, i, barCount, _peaks[i], max, true);
-
-                            Canvas.SetLeft(peak, leftX);
-                            if (useTop)
-                                Canvas.SetTop(peak, _peaks[i]);
-                            else
-                                Canvas.SetBottom(peak, _peaks[i]);
-                        }
-                        break;
-
-                // Circle modes
-                case VisualizationMode.OuterCircle:
-                case VisualizationMode.InnerCircle:
-                        double cx = ActualWidth * 0.5;
-                        double cy = ActualHeight * 0.5;
-                        bool outer = pos == VisualizationMode.OuterCircle;
-
-                        if (stereo) // stereo: two peak arrays
-                        {
-                            if (_peakBarsLow == null || _peakBarsHigh == null) return;
-
-                            int doubled = barCount * 2;
-                            double radius = stepX * doubled / (2 * Math.PI);
-                            double stepAng = (2 * Math.PI) / doubled;
-
-                            for (int i = 0; i < _peakBarsLow.Length; i++)
-                            {
-                                var pLow = _peakBarsLow[i];
-                                var pHigh = _peakBarsHigh[i];
-
-                                var rotLow = EnsureRotateTransform(pLow);
-                                var rotHigh = EnsureRotateTransform(pHigh);
-
-                                SetBarColour(pLow, i, barCount, _peaks[i], max, true);
-                                SetBarColour(pHigh, i, barCount, _peaksRight[i], max, true);
-
-                                // cache polar -> Cartesian once per bar
-                                if (pLow.Tag == null)
-                                {
-                                    double a = (i + 0.5) * stepAng - Math.PI * 0.5;
-                                    double x1 = cx + radius * Math.Cos(a);
-                                    double y1 = cy + radius * Math.Sin(a);
-                                    pLow.Tag = (x1, y1, a, cx, cy);
-                                }
-                                var (x, y, ang, cxOld, cyOld) = ((double, double, double, double, double))pLow.Tag;
-
-                                if(cx != cxOld || cy != cyOld)
-                                {
-                                    // recalculate polar -> Cartesian if center has changed
-                                    x = cx + radius * Math.Cos(ang);
-                                    y = cy + radius * Math.Sin(ang);
-                                    pLow.Tag = (x, y, ang, cx, cy);
-                                }
-
-                                double angM = ang + Math.PI; // mirror angle
-                                double xm = cx + radius * Math.Cos(angM); // mirror x
-
-                                Canvas.SetLeft(pLow, x - halfBar);
-                                Canvas.SetLeft(pHigh, xm - halfBar);
-
-                                if (outer)
-                                {
-                                    Canvas.SetTop(pLow, y + _peaks[i]);
-                                    rotLow.Angle = ang * DEG - 90.0;
-                                    rotLow.CenterX = halfBar;
-                                    rotLow.CenterY = -_peaks[i];
-
-                                    Canvas.SetTop(pHigh, y + _peaksRight[i]);
-                                    rotHigh.Angle = -angM * DEG - 90.0;
-                                    rotHigh.CenterX = halfBar;
-                                    rotHigh.CenterY = -_peaksRight[i];
-                                }
-                                else // InnerCircle
-                                {
-                                    Canvas.SetTop(pLow, y - _peaks[i]);
-                                    rotLow.Angle = ang * DEG - 90.0;
-                                    rotLow.CenterX = halfBar;
-                                    rotLow.CenterY = _peaks[i];
-
-                                    Canvas.SetTop(pHigh, y - _peaksRight[i]);
-                                    rotHigh.Angle = -angM * DEG - 90.0;
-                                    rotHigh.CenterX = halfBar;
-                                    rotHigh.CenterY = _peaksRight[i];
-                                }
-                            }
-                        }
-                        else // mono circle
-                        {
-                            if (barArr == null) return;
-
-                            double radius = stepX * barCount / (2 * Math.PI);
-                            double stepAng = (2 * Math.PI) / barCount;
-                            double angOff = -Math.PI * 0.5;
-
-                            for (int i = 0; i < barArr.Length; i++)
-                            {
-                                var peak = barArr[i];
-                                SetBarColour(peak, i, barCount, _peaks[i], max, true);
-
-                                double ang = i * stepAng + angOff;
-                                double x = cx + radius * Math.Cos(ang);
-                                double y = cy + radius * Math.Sin(ang);
-
-                                Canvas.SetLeft(peak, x - halfBar);
-
-                                if (outer)
-                                {
-                                    Canvas.SetTop(peak, y + _peaks[i]);
-                                    peak.RenderTransform = new RotateTransform(ang * DEG - 90.0, halfBar, -_peaks[i]);
-                                }
-                                else // InnerCircle
-                                {
-                                    Canvas.SetTop(peak, y - _peaks[i]);
-                                    peak.RenderTransform = new RotateTransform(ang * DEG - 90.0, halfBar, _peaks[i]);
-                                }
-                            }
-                        }
-                        break;
-                // Center mode 
-                case VisualizationMode.Center:
-                        if (_peakBarsLow == null || _peakBarsHigh == null) return;
-
-                        double halfCanvas = VisCanvas.ActualHeight * 0.5;
-
-                        for (int i = 0; i < _peakBarsLow.Length; i++, leftX += stepX)
-                        {
-                            var pLow = _peakBarsLow[i];
-                            var pHigh = _peakBarsHigh[i];
-
-                            Canvas.SetLeft(pLow, leftX);
-                            Canvas.SetLeft(pHigh, leftX);
-
-                            if (stereo)
-                            {
-                                Canvas.SetBottom(pLow, halfCanvas - (_peaksRight[i] * 0.5));
-                                Canvas.SetBottom(pHigh, halfCanvas + (_peaks[i] * 0.5) - 2.0);
-                            }
-                            else
-                            {
-                                double peak = _peaks[i] * 0.5;
-                                Canvas.SetBottom(pLow, halfCanvas - peak);
-                                Canvas.SetBottom(pHigh, halfCanvas + peak - 2.0);
-                            }
-
-                            SetBarColour(pLow, i, barCount, _peaks[i], max, true);
-                            SetBarColour(pHigh, i, barCount, _peaks[i], max, true, true);
-                        }
-                        break;
-            }
-        }
-
-        private void CreateBars()
-        {
-            var opts = Visualizer.InstanceOptions;
-            int count = opts._bars;
-
-            if(opts._channelMode == ChannelMode.Stereo && (opts._visualizationMode == VisualizationMode.OuterCircle || opts._visualizationMode == VisualizationMode.InnerCircle))
-            {
-                _bars = new Rectangle[count * 2];
-                _peaks = new double[count];
-                VisCanvas.Children.Clear();
-
-                for (int i = 0; i < count * 2; i++)
-                {
-                    var rect = new Rectangle
-                    {
-                        Width = opts._barWidth,
-                        Height = opts._minHeight,
-                        IsHitTestVisible = false
-                    };
-                    Canvas.SetLeft(rect, i * (opts._barWidth + opts._barGap) + 1);
-                    VisCanvas.Children.Add(rect);
-                    _bars[i] = rect;
-                }
-            }
-            else
-            {
-                _bars = new Rectangle[count];
-                _peaks = new double[count];
-                VisCanvas.Children.Clear();
-
-                for (int i = 0; i < count; i++)
-                {
-                    var rect = new Rectangle
-                    {
-                        Width = opts._barWidth,
-                        Height = opts._minHeight,
-                        IsHitTestVisible = false
-                    };
-                    Canvas.SetLeft(rect, i * (opts._barWidth + opts._barGap) + 1);
-                    VisCanvas.Children.Add(rect);
-                    _bars[i] = rect;
-                }
-            }
-
-            var old = _peaks;
-            _peaksRight = new double[count];
-            _peaksRight = new double[count];
-            Array.Copy(old, _peaks, Math.Min(old.Length, count));
-        }
-        private void ShowPeakBars()
-        {
-            var opts = Visualizer.InstanceOptions;
-            int count = opts._bars;
-
-            if (!opts._showPeaks)
-            {
-                RemovePeakBars();
-                return;
-            }
-
-            var peakColour = _color3;
-
-            switch (opts._visualizationMode)
-            {
-                case VisualizationMode.Bottom: // bottom
-                    //if (_peakBars?.Length == count) return; 
-                    RemovePeakBars();
-                    _peakBars = new Rectangle[count];
-                    for (int i = 0; i < count; i++)
-                    {
-                        var peak = new Rectangle
-                        {
-                            Width = opts._barWidth,
-                            Height = 3,
-                            Fill = peakColour,
-                            IsHitTestVisible = false
-                        };
-                        VisCanvas.Children.Add(peak);
-                        _peakBars[i] = peak;
-                    }
-                    break;
-                case VisualizationMode.Top: // top
-                    //if (_peakBars?.Length == count) return; 
-                    RemovePeakBars();
-                    _peakBars = new Rectangle[count];
-                    for (int i = 0; i < count; i++)
-                    {
-                        var peak = new Rectangle
-                        {
-                            Width = opts._barWidth,
-                            Height = 3,
-                            Fill = peakColour,
-                            IsHitTestVisible = false
-                        };
-                        VisCanvas.Children.Add(peak);
-                        _peakBars[i] = peak;
-                    }
-                    break;
-
-                case VisualizationMode.Center: // centered (needs two peaks per bar)
-                    //if (_peakBarsLow?.Length == count && _peakBarsHigh?.Length == count) return;
-                    RemovePeakBars();
-                    _peakBarsLow = new Rectangle[count];
-                    _peakBarsHigh = new Rectangle[count];
-                    for (int i = 0; i < count; i++)
-                    {
-                        var pLow = new Rectangle
-                        {
-                            Width = opts._barWidth,
-                            Height = 3,
-                            Fill = peakColour,
-                            IsHitTestVisible = false
-                        };
-                        var pHigh = new Rectangle
-                        {
-                            Width = opts._barWidth,
-                            Height = 3,
-                            Fill = peakColour,
-                            IsHitTestVisible = false
-                        };
-                        VisCanvas.Children.Add(pLow);
-                        VisCanvas.Children.Add(pHigh);
-                        _peakBarsLow[i] = pLow;
-                        _peakBarsHigh[i] = pHigh;
-                    }
-                    break;
-                case VisualizationMode.OuterCircle: // Outer Circle 
-                    RemovePeakBars();
-                    if (opts._channelMode == ChannelMode.Stereo)
-                    {
-                        _peakBarsLow = new Rectangle[count];
-                        _peakBarsHigh = new Rectangle[count];
-                        for (int i = 0; i < count; i++)
-                        {
-                            var pLow = new Rectangle
-                            {
-                                Width = opts._barWidth,
-                                Height = 3,
-                                Fill = peakColour,
-                                IsHitTestVisible = false
-                            };
-                            var pHigh = new Rectangle
-                            {
-                                Width = opts._barWidth,
-                                Height = 3,
-                                Fill = peakColour,
-                                IsHitTestVisible = false
-                            };
-                            VisCanvas.Children.Add(pLow);
-                            VisCanvas.Children.Add(pHigh);
-                            _peakBarsLow[i] = pLow;
-                            _peakBarsHigh[i] = pHigh;
-                        }
-                    }
-                    else
-                    {
-                        _peakBars = new Rectangle[count];
-                        for (int i = 0; i < count; i++)
-                        {
-                            var peak = new Rectangle
-                            {
-                                Width = opts._barWidth,
-                                Height = 3,
-                                Fill = peakColour,
-                                IsHitTestVisible = false
-                            };
-                            VisCanvas.Children.Add(peak);
-                            _peakBars[i] = peak;
-                        }
-                    }
-                    break;
-                case VisualizationMode.InnerCircle: // Inner Circle
-                    RemovePeakBars();
-                    if (opts._channelMode == ChannelMode.Stereo)
-                    {
-                        _peakBarsLow = new Rectangle[count];
-                        _peakBarsHigh = new Rectangle[count];
-                        for (int i = 0; i < count; i++)
-                        {
-                            var pLow = new Rectangle
-                            {
-                                Width = opts._barWidth,
-                                Height = 3,
-                                Fill = peakColour,
-                                IsHitTestVisible = false
-                            };
-                            var pHigh = new Rectangle
-                            {
-                                Width = opts._barWidth,
-                                Height = 3,
-                                Fill = peakColour,
-                                IsHitTestVisible = false
-                            };
-                            VisCanvas.Children.Add(pLow);
-                            VisCanvas.Children.Add(pHigh);
-                            _peakBarsLow[i] = pLow;
-                            _peakBarsHigh[i] = pHigh;
-                        }
-                    }
-                    else
-                    {
-                        _peakBars = new Rectangle[count];
-                        for (int i = 0; i < count; i++)
-                        {
-                            var peak = new Rectangle
-                            {
-                                Width = opts._barWidth,
-                                Height = 3,
-                                Fill = peakColour,
-                                IsHitTestVisible = false
-                            };
-                            VisCanvas.Children.Add(peak);
-                            _peakBars[i] = peak;
-                        }
-                    }
-                    break;
-            }
-        }
-        private void RemovePeakBars()
-        {
-            RemoveRectArray(_peakBars);
-            RemoveRectArray(_peakBarsLow);
-            RemoveRectArray(_peakBarsHigh);
-            _peakBars = _peakBarsLow = _peakBarsHigh = null;
-        }
-        private void RemoveRectArray(Rectangle[]? arr)
-        {
-            if (arr == null) return;
-            foreach (var r in arr)
-                VisCanvas.Children.Remove(r);
-        }
-        private void ResizeBars()
-        {
-            try
-            {
-                Visualizer.UpdateSettings = false;
-                var opts = Visualizer.InstanceOptions;
-
-                _color1 = new SolidColorBrush(opts._barColor1);
-                _color2 = new SolidColorBrush(opts._barColor2);
-                _color3 = new SolidColorBrush(opts._peakColor);
-                _color4 = new SolidColorBrush(opts._peakColor2);
-                _gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
-                _peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
-                _colorGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customNoteGradientColors);
-                _colorPeaksGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customPeakNoteGradientColors);
-                colorArrayGradient = Visualizer.InstanceOptions._customNoteGradientColors;
-                colorPeakArrayGradient = Visualizer.InstanceOptions._customPeakNoteGradientColors;
-
-                RemovePeakBars();
-                VisCanvas.Children.Clear();
-                CreateBars();
-                ShowPeakBars();
-            }
-            catch (Exception)
-            {
-
-            }
-        }
-
         public void ManageColorMove()
         {
             dTimeWatch.Start();
@@ -2288,228 +1564,6 @@ namespace FreqFreak
                 }
                 Thread.Sleep(16); // 60 fps
             }
-        }
-        private void SetBarColour(Rectangle rect, int index, int total, double height, double max, bool peak = false, bool top = false)
-        {
-            if (peak)
-            {
-                switch (Visualizer.InstanceOptions._peakColorType)
-                {
-                    case ColorMode.Match: // Match Bars
-                        switch (Visualizer.InstanceOptions._barColorType)
-                        {
-                            case ColorMode.SolidColor: // Solid
-                                rect.Fill = _color1;
-                                break;
-
-                            case ColorMode.DualColorVertical: // Vertical gradient
-                                if (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Bottom || Visualizer.InstanceOptions._visualizationMode == VisualizationMode.InnerCircle)
-                                {
-                                    rect.Fill = _color1;
-                                }
-                                else if (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Top || Visualizer.InstanceOptions._visualizationMode == VisualizationMode.OuterCircle) 
-                                {
-                                    rect.Fill = _color2;
-                                }
-                                else // Center
-                                {
-                                    if (top)
-                                    {
-                                        rect.Fill = _color1;
-                                    }
-                                    else
-                                    {
-                                        rect.Fill = _color2;
-                                    }
-                                }
-                                break;
-
-                            case ColorMode.DualColorHorizontal: // Horizontal gradient
-                                rect.Fill = new SolidColorBrush(
-                                    Visualizer.GetGradientColor(
-                                        new[] { _color1.Color, _color2.Color },
-                                        (double)index / total));
-                                break;
-
-                            case ColorMode.DualColorHeight: // Height gradient
-                                rect.Fill = new SolidColorBrush(
-                                    Visualizer.GetGradientColor(
-                                        new[] { _color1.Color, _color2.Color },
-                                        (double)height / max));
-                                break;
-                            case ColorMode.GradientVertical:
-                                rect.Fill = _colorGradientBrush;
-                                break;
-                            case ColorMode.GradientHorizontal:
-                                rect.Fill = new SolidColorBrush(
-                                    Visualizer.GetGradientColor(
-                                        colorArrayGradient,
-                                        (double)index / total));
-                                break;
-                            case ColorMode.GradientHeight:
-                                rect.Fill = new SolidColorBrush(
-                                    Visualizer.GetGradientColor(
-                                        colorArrayGradient,
-                                        (double)height / max));
-                                break;
-                            case ColorMode.GradientPitch: // Peak rainbow
-                                rect.Fill = new SolidColorBrush(
-                                    PitchDetector.GetPitchColor(PitchFreq, Visualizer.InstanceOptions._customNoteGradientColors));
-                                break;
-                            case ColorMode.DualColorPitch: // Peak gradient
-                                rect.Fill = new SolidColorBrush(
-                                    PitchDetector.GetPitchColor(PitchFreq, new[] { Visualizer.InstanceOptions._barColor1, Visualizer.InstanceOptions._barColor2 }));
-                                break;
-                            case ColorMode.GradientFrequency: // Frequency rainbow
-                                rect.Fill = new SolidColorBrush(
-                                    Visualizer.GetGradientColor(
-                                        colorArrayGradient,
-                                        (PitchFreq / 2200) - 0.03)); ;
-                                break;
-                            case ColorMode.DualColorFrequency: // Frequency gradient
-                                rect.Fill = new SolidColorBrush(
-                                    Visualizer.GetGradientColor(
-                                        new[] { Visualizer.InstanceOptions._barColor1, Visualizer.InstanceOptions._barColor2 },
-                                        (PitchFreq / 2200) - 0.03)); ;
-                                break;
-                        }
-                        break;
-                    case ColorMode.SolidColor: // Solid
-                        rect.Fill = _color3;
-                        break;
-
-                    case ColorMode.DualColorVertical: // Vertical gradient
-                        rect.Fill = _peakGradient;
-                        break;
-
-                    case ColorMode.DualColorHorizontal: // Horizontal gradient
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                new[] { _color3.Color, _color4.Color },
-                                (double)index / total));
-                        break;
-
-                    case ColorMode.DualColorHeight: // Height gradient
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                new[] { _color3.Color, _color4.Color },
-                                (double)height / max));
-                        break;
-                    case ColorMode.GradientVertical:
-                        rect.Fill = _colorPeaksGradientBrush;
-                        break;
-                    case ColorMode.GradientHorizontal:
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                colorPeakArrayGradient,
-                                (double)index / total));
-                        break;
-                    case ColorMode.GradientHeight:
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                colorPeakArrayGradient,
-                                (double)height / max));
-                        break;
-                    case ColorMode.GradientPitch: // Peak rainbow
-                        rect.Fill = new SolidColorBrush(
-                            PitchDetector.GetPitchColor(PitchFreq, Visualizer.InstanceOptions._customPeakNoteGradientColors));
-                        break;
-                    case ColorMode.DualColorPitch: // Peak gradient
-                        rect.Fill = new SolidColorBrush(
-                            PitchDetector.GetPitchColor(PitchFreq, new[] { _color3.Color, _color4.Color }));
-                        break;
-                    case ColorMode.GradientFrequency: // Frequency rainbow
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                colorPeakArrayGradient,
-                                (PitchFreq / 2200) - 0.03)); ;
-                        break;
-                    case ColorMode.DualColorFrequency: // Frequency gradient
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                new[] { _color3.Color, _color4.Color },
-                                (PitchFreq / 2200) - 0.03)); ;
-                        break;
-                }
-            }
-            else
-            {
-                switch (Visualizer.InstanceOptions._barColorType)
-                {
-                    case ColorMode.SolidColor: 
-                        rect.Fill = _color1;
-                        break;
-
-                    case ColorMode.DualColorVertical: 
-                        rect.Fill = _gradient;
-                        break;
-
-                    case ColorMode.DualColorHorizontal: 
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                new[] { _color1.Color, _color2.Color },
-                                (double)index / total));
-                        break;
-
-                    case ColorMode.DualColorHeight: 
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                new[] { _color1.Color, _color2.Color },
-                                (double)height / max));
-                        break;
-                    case ColorMode.GradientVertical: 
-                        rect.Fill = _colorGradientBrush;
-                        break;
-                    case ColorMode.GradientHorizontal: 
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                colorArrayGradient,
-                                (double)index / total));
-                        break;
-                    case ColorMode.GradientHeight: 
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                colorArrayGradient,
-                                (double)height / max));
-                        break;
-                    case ColorMode.GradientPitch: // Peak rainbow
-                        rect.Fill = new SolidColorBrush(
-                            PitchDetector.GetPitchColor(PitchFreq, Visualizer.InstanceOptions._customNoteGradientColors));
-                        break;
-                    case ColorMode.DualColorPitch: // Peak gradient
-                        rect.Fill = new SolidColorBrush(
-                            PitchDetector.GetPitchColor(PitchFreq, new[] {Visualizer.InstanceOptions._barColor1, Visualizer.InstanceOptions._barColor2 }));
-                        break;
-                    case ColorMode.GradientFrequency: // Frequency rainbow
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                colorArrayGradient,
-                                (PitchFreq / 2200) - 0.03));;
-                        break;
-                    case ColorMode.DualColorFrequency: // Frequency gradient
-                        rect.Fill = new SolidColorBrush(
-                            Visualizer.GetGradientColor(
-                                new[] { Visualizer.InstanceOptions._barColor1, Visualizer.InstanceOptions._barColor2 },
-                                (PitchFreq / 2200) - 0.03));;
-                        break;
-                }
-            }
-        }
-
-        // Delta time helpers for moving colors at the rate specified
-        float _progress = 0;
-        static Stopwatch dTimeWatch = new Stopwatch();
-        static Stopwatch cfWatch = new Stopwatch();
-        static double lastElapsed = 0;
-        public static double GetDeltaTime(bool markFrame = true)
-        {
-            double currentElapsedMs = dTimeWatch.Elapsed.TotalMilliseconds;
-            double deltaTime = (currentElapsedMs - lastElapsed) / 1000.0;
-            if (markFrame)
-            {
-                lastElapsed = currentElapsedMs;
-            }
-            return deltaTime;
         }
 
         // Extra funcs

@@ -7,7 +7,21 @@ namespace FreqFreak
     public enum ScaleMode { Normalized=0, Mel=1, Log10=2 }
     public enum ChannelMode { Mono=0, StereoLeft=1, StereoRight=2, Stereo=3 }
     public enum VisualizationMode { Bottom = 0, Center = 1, Top = 2, OuterCircle = 3, InnerCircle = 4, Oscilloscope = 5 }
-    public enum ColorPreset { Rainbow = 0, BisexualLighting = 1, Flames = 2, Ocean = 3, Nature = 4, Space = 5 }
+    public enum ColorPreset { 
+        Rainbow = 0, 
+        Sakura = 1,
+        Flames = 2, 
+        Retro = 3, 
+        OceanDepths = 4, 
+        MidnightSurf = 5,
+        Pastel = 6,
+        Watermelon = 7,
+        SynthwaveSunset = 8,
+        GrassHills = 9,
+        Blorange = 10,
+        Coffee = 11,
+
+    }
     /*
      *  <ComboBoxItem Content="Solid Color"/>
                             <ComboBoxItem Content="Dual Color Vertical"/>
@@ -52,7 +66,10 @@ namespace FreqFreak
         public int _smooth { get; set; }
         public VisualizationMode _visualizationMode { get; set; }
         public bool _showPeaks { get; set; }
+        public bool _showOnlyPeaks { get; set; }
+        public bool _showPeaksLine { get; set; }
         public bool _showLines { get; set; }
+        public bool _showBars { get; set; }
         public bool _invertSpectrum { get; set; }
         public int _rotateColor { get; set; }
         public double _peakDecay { get; set; }
@@ -64,6 +81,8 @@ namespace FreqFreak
         public double _rotation { get; set; }
         public double _bassScale { get; set; }
         public double _bassShake { get; set; }
+        public double _bassDampening { get; set; }
+        public float _lineThickness { get; set; }
         public ChannelMode _channelMode { get; set; }
         public ScaleMode _scaleMode { get; set; }
 
@@ -91,6 +110,9 @@ namespace FreqFreak
             _smooth = 1;
             _visualizationMode = VisualizationMode.Center;
             _showPeaks = true;
+            _showLines = false;
+            _showPeaksLine = false;
+            _showBars = true;
             _scaleMode = ScaleMode.Normalized;
             _barColorType = ColorMode.SolidColor;
             _peakColorType = ColorMode.Match;
@@ -99,7 +121,9 @@ namespace FreqFreak
             _attackSpeed = 0.5;
             _decaySpeed = 0.3;
             _bassScale = 1;
-            _bassShake = 1;
+            _bassShake = 0;
+            _bassDampening = 1.17;
+            _lineThickness = 2;
             _invertSpectrum = false;
             _channelMode = ChannelMode.Mono;
             _barColor1 = Color.FromArgb(255, 0, 0, 0);
@@ -111,13 +135,12 @@ namespace FreqFreak
         }
         public void SetColorPreset(ColorPreset preset = ColorPreset.Rainbow, bool peaks = false)
         {
-            if(peaks)
+            var clrs = new Color[] { };
+            switch (preset)
             {
-                switch (preset)
-                {
-                    case ColorPreset.Rainbow:
-                        _customPeakNoteGradientColors = new Color[]
-                        {
+                case ColorPreset.Rainbow:
+                    clrs = new Color[]
+                    {
                         Color.FromArgb(255, 255,   0, 0),    // C  - Red
                         Color.FromArgb(255, 255, 128, 0),    // C# - Red-Orange
                         Color.FromArgb(255, 255, 255, 0),    // D  - Yellow
@@ -130,132 +153,127 @@ namespace FreqFreak
                         Color.FromArgb(255, 128, 0, 255),    // A  - Blue-Purple
                         Color.FromArgb(255, 255, 0, 255),    // A# - Purple
                         Color.FromArgb(255, 255, 0, 128),    // B  - Purple-Red
-                        };
-                        break;
-                    case ColorPreset.BisexualLighting:
-                        _customPeakNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 215, 0, 113),    // Pink
-                        Color.FromArgb(255, 156, 78, 151),    // Light Purple
-                        Color.FromArgb(255, 0, 53, 169),    // Dark Blue
-                        };
-                        break;
-                    case ColorPreset.Ocean:
-                        _customPeakNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 79, 66, 180),    // Ocean Blue
-                        Color.FromArgb(255, 78, 91, 173),    // Liberty
-                        Color.FromArgb(255, 76, 116, 166),    // Blue Yonder
-                        Color.FromArgb(255, 75, 141, 160),    // Rackley
-                        Color.FromArgb(255, 73, 166, 153),    // Keppel
-                        Color.FromArgb(255, 72, 191, 146),    // Ocean Green
-                        };
-                        break;
-                    case ColorPreset.Nature:
-                        _customPeakNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 0, 52, 33),    // Dark Green
-                        Color.FromArgb(255, 12, 70, 61),    // Blue-Green
-                        Color.FromArgb(255, 9, 95, 84),    // Bangladesh Green
-                        Color.FromArgb(255, 1, 124, 111),    // Pine Green
-                        Color.FromArgb(255, 73, 166, 153),    // Paolo Veronese Green
-                        };
-                        break;
-                    case ColorPreset.Flames:
-                        _customPeakNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 191, 30, 51),    // Cardinal
-                        Color.FromArgb(255, 220, 59, 24),    // Plochere's Vermilion
-                        Color.FromArgb(255, 242, 100, 23),    // Halloween Orange
-                        Color.FromArgb(255, 242, 143, 10),    // Tangerine
-                        Color.FromArgb(255, 237, 182, 5),    // American Yellow
-                        };
-                        break;
-                    case ColorPreset.Space:
-                        _customPeakNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 20, 22, 24),    // Chinese Black
-                        Color.FromArgb(255, 44, 49, 53),    // Gunmetal
-                        Color.FromArgb(255, 130, 57, 130),    // Maximum Purple
-                        Color.FromArgb(255, 103, 22, 110),    // Midnight
-                        Color.FromArgb(255, 213, 232, 242),    // Gray
-                        };
-                        break;
+                    };
+                    break;
+                case ColorPreset.Sakura:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#FF5C8A"),
+                        (Color)ColorConverter.ConvertFromString("#FF92C2"),
+                        (Color)ColorConverter.ConvertFromString("#FFD1E3"),
+                        (Color)ColorConverter.ConvertFromString("#A6E3E9"),
+                        (Color)ColorConverter.ConvertFromString("#64DFDF"),
+                    };
+                    break;
+                case ColorPreset.Flames:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#FFDF0D2D"),
+                        (Color)ColorConverter.ConvertFromString("#FFDC3B18"),
+                        (Color)ColorConverter.ConvertFromString("#FFF26417"),
+                        (Color)ColorConverter.ConvertFromString("#FFF28F0A"),
+                        (Color)ColorConverter.ConvertFromString("#FFEDB605"),
+                    };
+                    break;
+                case ColorPreset.Retro:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#2B2D42"),
+                        (Color)ColorConverter.ConvertFromString("#EF476F"),
+                        (Color)ColorConverter.ConvertFromString("#FFD166"),
+                        (Color)ColorConverter.ConvertFromString("#06D6A0"),
+                        (Color)ColorConverter.ConvertFromString("#118AB2"),
+                    };
+                    break;
+                case ColorPreset.OceanDepths:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#FF002030"),
+                        (Color)ColorConverter.ConvertFromString("#FF00243A"),
+                        (Color)ColorConverter.ConvertFromString("#FF013A63"),
+                        (Color)ColorConverter.ConvertFromString("#FF086FCE"),
+                        (Color)ColorConverter.ConvertFromString("#FF39C6F4"),
+                        (Color)ColorConverter.ConvertFromString("#FF65EBFF"),
+                    };
+                    break;
+                case ColorPreset.MidnightSurf:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#00F5D4"),
+                        (Color)ColorConverter.ConvertFromString("#00BBF9"),
+                        (Color)ColorConverter.ConvertFromString("#4EA8DE"),
+                        (Color)ColorConverter.ConvertFromString("#6930C3"),
+                        (Color)ColorConverter.ConvertFromString("#3A0CA3"),
+                    };
+                    break;
+                case ColorPreset.Pastel:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#F0F4F8"),
+                        (Color)ColorConverter.ConvertFromString("#CFE8FF"),
+                        (Color)ColorConverter.ConvertFromString("#B8E1DD"),
+                        (Color)ColorConverter.ConvertFromString("#EAD6FF"),
+                        (Color)ColorConverter.ConvertFromString("#8093F1"),
+                    };
+                    break;
+                case ColorPreset.Watermelon:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#FFD8003D"),
+                        (Color)ColorConverter.ConvertFromString("#FFFB6F92"),
+                        (Color)ColorConverter.ConvertFromString("#FFA7C957"),
+                        (Color)ColorConverter.ConvertFromString("#FF538D22"),
+                        (Color)ColorConverter.ConvertFromString("#FF007135"),
+                    };
+                    break;
+                case ColorPreset.SynthwaveSunset:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#2E1A47"),
+                        (Color)ColorConverter.ConvertFromString("#7C3AED"),
+                        (Color)ColorConverter.ConvertFromString("#F15BB5"),
+                        (Color)ColorConverter.ConvertFromString("#FF9671"),
+                        (Color)ColorConverter.ConvertFromString("#FFC75F"),
+                    };
+                    break;
+                case ColorPreset.GrassHills:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#FF0B2715"),
+                        (Color)ColorConverter.ConvertFromString("#FF1E6A3A"),
+                        (Color)ColorConverter.ConvertFromString("#FF42B46D"),
+                        (Color)ColorConverter.ConvertFromString("#FFA4F1B6"),
+                    };
+                    break;
+                case ColorPreset.Blorange:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#FF264653"),
+                        (Color)ColorConverter.ConvertFromString("#FF2A9D8F"),
+                        (Color)ColorConverter.ConvertFromString("#FFE9C46A"),
+                        (Color)ColorConverter.ConvertFromString("#FFF4A261"),
+                        (Color)ColorConverter.ConvertFromString("#FFE76F51"),
+                    };
+                    break;
+                case ColorPreset.Coffee:
+                    clrs = new Color[]
+                    {
+                        (Color)ColorConverter.ConvertFromString("#FFF6E7D7"),
+                        (Color)ColorConverter.ConvertFromString("#FFE6B8A2"),
+                        (Color)ColorConverter.ConvertFromString("#FFC46A3B"),
+                        (Color)ColorConverter.ConvertFromString("#FF8A5A44"),
+                        (Color)ColorConverter.ConvertFromString("#FF2F2A2B"),
+                    };
+                    break;
 
-                }
+            }
+            if (peaks)
+            {
+                _customPeakNoteGradientColors = clrs;
             }
             else
             {
-                switch (preset)
-                {
-                    case ColorPreset.Rainbow:
-                        _customNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 255,   0, 0),    // C  - Red
-                        Color.FromArgb(255, 255, 128, 0),    // C# - Red-Orange
-                        Color.FromArgb(255, 255, 255, 0),    // D  - Yellow
-                        Color.FromArgb(255, 128, 255, 0),    // D# - Yellow-Green
-                        Color.FromArgb(255,   0, 255, 0),    // E  - Green
-                        Color.FromArgb(255, 0, 255, 128),    // F  - Green-Cyan
-                        Color.FromArgb(255, 0, 255, 255),    // F# - Cyan
-                        Color.FromArgb(255, 0, 128, 255),    // G  - Cyan-Blue
-                        Color.FromArgb(255, 0,   0, 255),    // G# - Blue
-                        Color.FromArgb(255, 128, 0, 255),    // A  - Blue-Purple
-                        Color.FromArgb(255, 255, 0, 255),    // A# - Purple
-                        Color.FromArgb(255, 255, 0, 128),    // B  - Purple-Red
-                        };
-                        break;
-                    case ColorPreset.BisexualLighting:
-                        _customNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 215, 0, 113),    // Pink
-                        Color.FromArgb(255, 156, 78, 151),    // Light Purple
-                        Color.FromArgb(255, 0, 53, 169),    // Dark Blue
-                        };
-                        break;
-                    case ColorPreset.Ocean:
-                        _customNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 79, 66, 180),    // Ocean Blue
-                        Color.FromArgb(255, 78, 91, 173),    // Liberty
-                        Color.FromArgb(255, 76, 116, 166),    // Blue Yonder
-                        Color.FromArgb(255, 75, 141, 160),    // Rackley
-                        Color.FromArgb(255, 73, 166, 153),    // Keppel
-                        Color.FromArgb(255, 72, 191, 146),    // Ocean Green
-                        };
-                        break;
-                    case ColorPreset.Nature:
-                        _customNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 0, 52, 33),    // Dark Green
-                        Color.FromArgb(255, 12, 70, 61),    // Blue-Green
-                        Color.FromArgb(255, 9, 95, 84),    // Bangladesh Green
-                        Color.FromArgb(255, 1, 124, 111),    // Pine Green
-                        Color.FromArgb(255, 73, 166, 153),    // Paolo Veronese Green
-                        };
-                        break;
-                    case ColorPreset.Flames:
-                        _customNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 191, 30, 51),    // Cardinal
-                        Color.FromArgb(255, 220, 59, 24),    // Plochere's Vermilion
-                        Color.FromArgb(255, 242, 100, 23),    // Halloween Orange
-                        Color.FromArgb(255, 242, 143, 10),    // Tangerine
-                        Color.FromArgb(255, 237, 182, 5),    // American Yellow
-                        };
-                        break;
-                    case ColorPreset.Space:
-                        _customNoteGradientColors = new Color[]
-                        {
-                        Color.FromArgb(255, 20, 22, 24),    // Chinese Black
-                        Color.FromArgb(255, 44, 49, 53),    // Gunmetal
-                        Color.FromArgb(255, 130, 57, 130),    // Maximum Purple
-                        Color.FromArgb(255, 103, 22, 110),    // Midnight
-                        Color.FromArgb(255, 213, 232, 242),    // Gray
-                        };
-                        break;
-
-                }
+                _customNoteGradientColors = clrs;
             }
            
         }

@@ -28,11 +28,9 @@ namespace FreqFreak
         private DateTime lastPitchChange = DateTime.MinValue;
         private string lastPitch = "";
         public Dispatcher _optionsDispatcher;
-        public NormalDragHandler dragHandler;
 
         public OptionsWindow()
         {
-            dragHandler = new(this);
             AllowValueSet = false;
 
             this.Closed += (sender, e) =>
@@ -55,9 +53,6 @@ namespace FreqFreak
                         }
                         _optionsDispatcher.BeginInvoke(() =>
                         {
-                            //var fpsRoll = MainWindow.displayFpsMeter.RollingFps;
-                            //var fftpsRoll = Visualizer.fpsMeter.RollingFps;
-
                             var fps = MainWindow.displayFpsMeter.RollingFps;
                             var fftps = Visualizer.fpsMeter.RollingFps;
 
@@ -76,11 +71,6 @@ namespace FreqFreak
                             var fpsClr = Visualizer.GetGradientColor(new Color[] { badClr, goodClr }, fpsStep);
                             var fftpsClr = Visualizer.GetGradientColor(new Color[] { badClr, goodClr }, fftpsStep);
                             var pitchClr = Visualizer.GetGradientColor(new Color[] { transparentPitch, pitchLockColor }, pitchStep);
-                            //var pitchClr = PitchDetector.GetPitchColor(MainWindow.PitchFreq, Visualizer.InstanceOptions._customNoteGradientColors);
-
-                            //fpsClr.A = 60;
-                            //fftpsClr.A = 60;
-                            //pitchClr.A = 30;
 
                             if(ActualWidth < 440)
                             {
@@ -97,8 +87,7 @@ namespace FreqFreak
 
                             var brush = MainWindow.GetHorizontalGradientBrush(new Color[] { fpsClr, fpsClr, fftpsClr, fftpsClr, pitchClr });
                             FPSStatus.Background = brush;
-                            //FFTPSStatus.Background = new SolidColorBrush(fftpsClr);
-                            //PitchDisplayColor.Background = new SolidColorBrush(pitchClr);
+
                         });
                     }
                     catch (Exception)
@@ -160,6 +149,8 @@ namespace FreqFreak
             FFTResolutionInput.Text = Visualizer.InstanceOptions._fftSize.ToString();
             SpectrogramInput.Text = Visualizer.InstanceOptions._scaleMode.ToString();
             RangeInput.Text = Visualizer.InstanceOptions._dbRange.ToString();
+            LineThicknessInput.Text = Visualizer.InstanceOptions._lineThickness.ToString();
+            BassDampenInput.Text = Visualizer.InstanceOptions._bassDampening.ToString();
             AudioChannelInput.SelectedIndex = (int)Visualizer.InstanceOptions._channelMode;
             var curMode = Visualizer.InstanceOptions._visualizationMode.ToString();
             if (AudioChannelInput.Text == "Stereo")
@@ -185,7 +176,27 @@ namespace FreqFreak
                 }
             }
 
-            ShowPeaksInput.IsChecked = Visualizer.InstanceOptions._showPeaks;
+            if(Visualizer.InstanceOptions._showPeaks && !Visualizer.InstanceOptions._showOnlyPeaks)
+            {
+                PeaksModeInput.Text = "Peak Bars";
+            }
+            else if (Visualizer.InstanceOptions._showPeaksLine && !Visualizer.InstanceOptions._showOnlyPeaks)
+            {
+                PeaksModeInput.Text = "Peak Line";
+            }
+            else if (Visualizer.InstanceOptions._showPeaks && Visualizer.InstanceOptions._showOnlyPeaks)
+            {
+                PeaksModeInput.Text = "Peak Bars Only";
+            }
+            else if (Visualizer.InstanceOptions._showPeaksLine && Visualizer.InstanceOptions._showOnlyPeaks)
+            {
+                PeaksModeInput.Text = "Peak Line Only";
+            }
+            else if (!Visualizer.InstanceOptions._showBars && !Visualizer.InstanceOptions._showPeaksLine)
+            {
+                PeaksModeInput.Text = "Off";
+            }
+
             BarColorOne.SelectedColor = Visualizer.InstanceOptions._barColor1;
             BarColorTwo.SelectedColor = Visualizer.InstanceOptions._barColor2;
             PeakColor.SelectedColor = Visualizer.InstanceOptions._peakColor;
@@ -253,6 +264,7 @@ namespace FreqFreak
             ColorMoveSpeedInput.Text = Visualizer.InstanceOptions._ColorMoveSpeed.ToString();
             ColorChangeFreqInput.Text = Visualizer.InstanceOptions._ColorChangeFreqency.ToString();
             InvertSpectrum.IsChecked = Visualizer.InstanceOptions._invertSpectrum;
+            ShowLinesInput.IsChecked = Visualizer.InstanceOptions._showLines;
 
             ScaleInput.Text = Visualizer.InstanceOptions._bassScale.ToString();
             ShakeInput.Text = Visualizer.InstanceOptions._bassShake.ToString();
@@ -374,6 +386,16 @@ namespace FreqFreak
                 Visualizer.InstanceOptions._bassShake = bassShake;
             }
 
+            if (float.TryParse(LineThicknessInput.Text, out float lineThick))
+            {
+                Visualizer.InstanceOptions._lineThickness = lineThick;
+            }
+
+            if (float.TryParse(BassDampenInput.Text, out float bassDamp))
+            {
+                Visualizer.InstanceOptions._bassDampening = bassDamp;
+            }
+
             int fftOut = Visualizer.InstanceOptions._fftSize;
             if (int.TryParse((string)((ComboBoxItem)FFTResolutionInput.SelectedItem).Content, out fftOut))
             {
@@ -401,6 +423,12 @@ namespace FreqFreak
                 if (Enum.TryParse(typeof(VisualizationMode), selectedMode, out object result))
                 {
                     Visualizer.InstanceOptions._visualizationMode = (VisualizationMode)result;
+
+                    if(Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Top || Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Bottom)
+                    {
+                        Visualizer.InstanceOptions._channelMode = Visualizer.InstanceOptions._channelMode == ChannelMode.Stereo ? ChannelMode.Mono : Visualizer.InstanceOptions._channelMode;
+                    }
+
                     Visualizer.MainWin.Dispatcher.BeginInvoke(() =>
                     {
                         Visualizer.MainWin.OscView.Visibility = (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Oscilloscope) ? Visibility.Visible : Visibility.Collapsed;
@@ -413,12 +441,44 @@ namespace FreqFreak
             {
                 AudioChannelInput.SelectedIndex = 3;
             }
-            else if(Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Bottom || Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Top && AudioChannelInput.SelectedIndex != 0)
-            {
-                AudioChannelInput.SelectedIndex = 0;
-            }
 
-            Visualizer.InstanceOptions._showPeaks = ShowPeaksInput.IsChecked.Value;
+            string peakMode = (string)((ComboBoxItem)PeaksModeInput.SelectedItem).Content;
+
+            if (peakMode == "Peak Bars")
+            {
+                Visualizer.InstanceOptions._showPeaks = true;
+                Visualizer.InstanceOptions._showBars = Visualizer.InstanceOptions._showLines ? false : true;
+                Visualizer.InstanceOptions._showPeaksLine = false;
+                Visualizer.InstanceOptions._showOnlyPeaks = false;
+            }
+            else if (peakMode == "Peak Line")
+            {
+                Visualizer.InstanceOptions._showPeaks = false;
+                Visualizer.InstanceOptions._showBars = Visualizer.InstanceOptions._showLines ? false : true; ;
+                Visualizer.InstanceOptions._showPeaksLine = true;
+                Visualizer.InstanceOptions._showOnlyPeaks = false;
+            }
+            else if (peakMode == "Peak Bars Only")
+            {
+                Visualizer.InstanceOptions._showPeaks = true;
+                Visualizer.InstanceOptions._showBars = false;
+                Visualizer.InstanceOptions._showPeaksLine = false;
+                Visualizer.InstanceOptions._showOnlyPeaks = true;
+            }
+            else if (peakMode == "Peak Line Only")
+            {
+                Visualizer.InstanceOptions._showPeaks = false;
+                Visualizer.InstanceOptions._showBars = false;
+                Visualizer.InstanceOptions._showPeaksLine = true;
+                Visualizer.InstanceOptions._showOnlyPeaks = true;
+            }
+            else if (peakMode == "Off")
+            {
+                Visualizer.InstanceOptions._showPeaks = false;
+                Visualizer.InstanceOptions._showBars = Visualizer.InstanceOptions._showLines ? false : true;
+                Visualizer.InstanceOptions._showPeaksLine = false;
+                Visualizer.InstanceOptions._showOnlyPeaks = false;
+            }
 
             var boclr = Color.FromArgb((byte)BarColorOne.Color.A, (byte)BarColorOne.Color.RGB_R, (byte)BarColorOne.Color.RGB_G, (byte)BarColorOne.Color.RGB_B);
             var btclr = Color.FromArgb((byte)BarColorTwo.Color.A, (byte)BarColorTwo.Color.RGB_R, (byte)BarColorTwo.Color.RGB_G, (byte)BarColorTwo.Color.RGB_B);
@@ -577,11 +637,6 @@ namespace FreqFreak
             }
 
             Visualizer.UpdateSettings = true;
-        }
-        private void ShowPeaksInput_Click(object sender, RoutedEventArgs e)
-        {
-            if (!AllowValueSet) return;
-            Visualizer.InstanceOptions._showPeaks = ShowPeaksInput.IsChecked.Value;
         }
 
         private void BarColor_ColorChanged(object sender, RoutedEventArgs e)
@@ -762,12 +817,13 @@ namespace FreqFreak
         {
             //var offset = e.GetPosition(this);
             //DragWorkaround.StartDragging(this, offset);
-            dragHandler.BeginDrag(e);
+            //dragHandler.BeginDrag(e);
+            DragMove();
         }
 
         private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            dragHandler.EndDrag();
+            //dragHandler.EndDrag();
         }
 
         // Resize helper
@@ -820,10 +876,24 @@ namespace FreqFreak
 
                 Rect r = _startRect;
 
-                if (left) { r.X += delta.X; r.Width -= delta.X; }
-                if (right) { r.Width += delta.X; }
-                if (top) { r.Y += delta.Y; r.Height -= delta.Y; }
-                if (bottom) { r.Height += delta.Y; }
+                if (left) 
+                { 
+                    r.X += delta.X; 
+                    r.Width = r.Width - delta.X >= MinWidth ? r.Width - delta.X : MinWidth; 
+                }
+                if (right) 
+                { 
+                    r.Width = r.Width + delta.X >= 0 ? r.Width + delta.X : 0;
+                }
+                if (top) 
+                { 
+                    r.Y += delta.Y;
+                    r.Height = r.Height - delta.Y >= MinHeight ? r.Height - delta.Y : MinHeight;
+                }
+                if (bottom) 
+                { 
+                    r.Height = r.Height + delta.Y >= 0 ? r.Height + delta.Y : 0; 
+                }
 
                 // Don't let it get negative
                 if (r.Width > MinWidth)
@@ -884,13 +954,6 @@ namespace FreqFreak
             }
         }
 
-        private void LinesInput_Click(object sender, RoutedEventArgs e)
-        {
-            if (!AllowValueSet) return;
-            Visualizer.InstanceOptions._showLines = LinesInput.IsChecked.Value;
-            MainWindow._lineSwiitch = !LinesInput.IsChecked.Value;
-        }
-
         private void RecenterButton_Click(object sender, RoutedEventArgs e)
         {
             var midH = this.Top + (this.ActualHeight / 2);
@@ -909,6 +972,13 @@ namespace FreqFreak
         private void PhotoButton_Click(object sender, RoutedEventArgs e)
         {
             Visualizer.MainWin.CreateNewPhotoCutoutWindow();
+        }
+
+        private void ShowLinesInput_Click(object sender, RoutedEventArgs e)
+        {
+            if (!AllowValueSet) return;
+            Visualizer.InstanceOptions._showLines = ShowLinesInput.IsChecked.Value;
+            Visualizer.InstanceOptions._showBars = !ShowLinesInput.IsChecked.Value;
         }
     }
 }

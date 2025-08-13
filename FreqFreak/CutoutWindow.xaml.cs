@@ -25,7 +25,6 @@ namespace FreqFreak
         public double WidthCache = 400;
         public double HeightCache = 400;
         public double BassScale = 1.0;
-        public double BassShake = 0.0;
         public double Rotation = 0;
         public bool DraggableCache = true;
         public Guid WindowID = Guid.NewGuid();
@@ -47,7 +46,7 @@ namespace FreqFreak
                 dragHandler.EndDrag();
                 if(Visualizer.PhotoCutoutWindow != null)
                 {
-                    Visualizer.PhotoCutoutWindow.UpdateSettings(WindowID, Left, Top, WidthCache, HeightCache, BassScale, BassShake, Rotation, Topmost, DraggableCache);
+                    Visualizer.PhotoCutoutWindow.UpdateSettings(WindowID, Left, Top, WidthCache, HeightCache, BassScale, Rotation, Topmost, DraggableCache);
                 }
             };
 
@@ -81,12 +80,11 @@ namespace FreqFreak
             Left = left;
             Top = top;
         }
-        public void UpdateSettings(double x, double y, double w, double h, double bScale, double bShake, double r, bool t, bool d)
+        public void UpdateSettings(double x, double y, double w, double h, double bScale, double r, bool t, bool d)
         {
             WidthCache = w;
             HeightCache = h;
             BassScale = bScale;
-            BassShake = bShake;
             DraggableCache = d;
             Dispatcher.Invoke(() =>
             {

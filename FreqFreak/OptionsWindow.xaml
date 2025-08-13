@@ -12,7 +12,7 @@
         WindowStyle="None"
         IsHitTestVisible="True"
         Foreground="{DynamicResource ResourceKey=MainText}"
-        Title="FreqFreak Options" Height="890" Width="490" MinWidth="490">
+        Title="FreqFreak Options" Height="450" Width="490" MinWidth="490" MinHeight="300">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -234,6 +234,7 @@
                             <RowDefinition Height="33*"/>
                             <RowDefinition Height="33*"/>
                             <RowDefinition Height="33*"/>
+                            <RowDefinition Height="33*"/>
                         </Grid.RowDefinitions>
                         <TextBlock Grid.Column="0" Grid.Row="0" Margin="0,-5,0,0">Bar Height 
                             <Span FontSize="18">
@@ -295,7 +296,7 @@
                                  Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="1" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="2" Grid.Row="1" Margin="0,-5,0,0">Show Peak Lines 
+                        <TextBlock Grid.Column="2" Grid.Row="1" Margin="0,-5,0,0">Peaks Mode 
                             <Span FontSize="18">
                                 <Span.ToolTip>
                                     <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Show lines at the peak of each bar that decay at a slower, steady pace" />
@@ -303,11 +304,17 @@
                                 ⓘ
                             </Span>
                         </TextBlock>
-                        <CheckBox x:Name="ShowPeaksInput" Width="100" HorizontalAlignment="Left"
-                                  Style="{StaticResource WinUI3CheckBoxStyle}"
-                                  Click="ShowPeaksInput_Click" Grid.Column="2" Grid.Row="1" Margin="0,20,0,0"/>
+                        <ComboBox x:Name="PeaksModeInput" SelectionChanged="SelectionChanged" 
+                                  Style="{StaticResource WinUI3ComboBoxStyle}" ItemContainerStyle="{StaticResource WinUI3ComboBoxItemStyle}"
+                                  Grid.Column="2" Grid.Row="1" Margin="0,20,0,0" Width="100" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Off"/>
+                            <ComboBoxItem Content="Peak Bars"/>
+                            <ComboBoxItem Content="Peak Line"/>
+                            <ComboBoxItem Content="Peak Bars Only"/>
+                            <ComboBoxItem Content="Peak Line Only"/>
+                        </ComboBox>
 
-                        <TextBlock Grid.Column="0" Grid.Row="2" Margin="0,-5,0,0">Mode 
+                        <TextBlock Grid.Column="0" Grid.Row="2" Margin="0,-3,0,0">Mode 
                             <Span FontSize="18">
                                 <Span.ToolTip>
                                     <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Where the bars will originate from" />
@@ -315,7 +322,7 @@
                                 ⓘ
                             </Span>
                         </TextBlock>
-                        <ComboBox x:Name="PosInput" SelectionChanged="SelectionChanged" 
+                        <ComboBox x:Name="PosInput" SelectionChanged="SelectionChanged" Panel.ZIndex="4"
                                   Style="{StaticResource WinUI3ComboBoxStyle}" ItemContainerStyle="{StaticResource WinUI3ComboBoxItemStyle}"
                                   Grid.Column="0" Grid.Row="2" Margin="0,20,0,0" Width="100" HorizontalAlignment="Left">
                             <ComboBoxItem Content="Bottom"/>
@@ -325,6 +332,18 @@
                             <ComboBoxItem Content="InnerCircle"/>
                             <ComboBoxItem Content="Oscilloscope"/>
                         </ComboBox>
+                        
+                        <TextBlock Grid.Column="0" Grid.Row="5" Margin="0,-2,0,0">Show As Lines 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Show bars as a continuous line instead" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
+                        <CheckBox x:Name="ShowLinesInput" Width="100" HorizontalAlignment="Left" IsChecked="False"
+                                  Style="{StaticResource WinUI3CheckBoxStyle}"
+                                  Click="ShowLinesInput_Click" Grid.Column="0" Grid.Row="5" Margin="0,22,0,0"/>
 
                         <TextBlock Grid.Column="1" Grid.Row="2" Margin="0,-5,0,0">Peak Decay 
                             <Span FontSize="18">
@@ -349,6 +368,18 @@
                         <TextBox x:Name="PeakHold" Width="100" HorizontalAlignment="Left"
                                  Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="2" Grid.Row="2" Margin="0,20,0,0"/>
+
+                        <TextBlock Grid.Column="1" Grid.Row="3" Margin="0,-5,0,0">Line Thickness 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="How Thick lines should show" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>
+                        </TextBlock>
+                        <TextBox x:Name="LineThicknessInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
+                                 TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="3" Margin="0,20,0,0"/>
 
                     </Grid>
                 </GroupBox>
@@ -557,17 +588,17 @@
                                  Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="4" Margin="0,20,0,0"/>
 
-                        <TextBlock Grid.Column="3" Grid.Row="4" Margin="0,-5,0,0">Show as Lines 
+                        <TextBlock Grid.Column="3" Grid.Row="4" Margin="0,-5,0,0">Low End Dampen 
                             <Span FontSize="18">
                                 <Span.ToolTip>
-                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Instead of showing bars, a line will draw through the top point of where each bar would be" />
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Dampen the low end of the spectrum, if bass is overpowering" />
                                 </Span.ToolTip>
                                 ⓘ
                             </Span>
                         </TextBlock>
-                        <CheckBox x:Name="LinesInput" Width="100" HorizontalAlignment="Left"
-                                  Style="{StaticResource WinUI3CheckBoxStyle}"
-                                  Click="LinesInput_Click" Grid.Column="3" Grid.Row="4" Margin="0,20,0,0"/>
+                        <TextBox x:Name="BassDampenInput" Width="100" HorizontalAlignment="Left"
+                                 Style="{StaticResource WinUI3TextBoxStyle}"
+                                 TextChanged="Input_TextChanged" Grid.Column="2" Grid.Row="4" Margin="0,20,0,0"/>
                     </Grid>
                 </GroupBox>
 
@@ -758,7 +789,7 @@
                                   Click="PreviewInput_Click" Grid.Column="2" Grid.Row="4" Margin="0,22,0,0"/>
                     </Grid>
                 </GroupBox>
-                <TextBlock Text="Version 2.0.0"/>
+                <TextBlock Text="Version 2.0.9"/>
             </StackPanel>
         </ScrollViewer>
 
