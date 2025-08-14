@@ -224,12 +224,12 @@ namespace FreqFreak
             switch (Visualizer.InstanceOptions._barColorType)
             {
                 case ColorMode.SolidColor:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(MainWindow._color1.Color));
+                    return _d2dContext.CreateSolidColorBrush(ToColor4(MainWindow._color1));
                 case ColorMode.DualColorVertical:
                     var stopsV = new Vortice.Direct2D1.GradientStop[]
                     {
-                        new Vortice.Direct2D1.GradientStop(0, ToColor4(MainWindow._color1.Color)),
-                        new Vortice.Direct2D1.GradientStop(1, ToColor4(MainWindow._color2.Color))
+                        new Vortice.Direct2D1.GradientStop(0, ToColor4(MainWindow._color1)),
+                        new Vortice.Direct2D1.GradientStop(1, ToColor4(MainWindow._color2))
                     };
                     using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsV))
                     {
@@ -243,8 +243,8 @@ namespace FreqFreak
                 case ColorMode.DualColorHorizontal:
                     var stopsH = new Vortice.Direct2D1.GradientStop[]
                     {
-                        new Vortice.Direct2D1.GradientStop(0, ToColor4(MainWindow._color1.Color)),
-                        new Vortice.Direct2D1.GradientStop(1, ToColor4(MainWindow._color2.Color))
+                        new Vortice.Direct2D1.GradientStop(0, ToColor4(MainWindow._color1)),
+                        new Vortice.Direct2D1.GradientStop(1, ToColor4(MainWindow._color2))
                     };
                     using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsH))
                     {
@@ -257,7 +257,7 @@ namespace FreqFreak
                     }
                 case ColorMode.DualColorHeight:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(Visualizer.GetGradientColor(
-                            new[] { MainWindow._color1.Color, MainWindow._color2.Color },
+                            new[] { MainWindow._color1, MainWindow._color2 },
                             (double)max / 0.7)));
                 case ColorMode.GradientVertical:
                     var stopsGV = new List<Vortice.Direct2D1.GradientStop>();
@@ -314,7 +314,7 @@ namespace FreqFreak
                             (MainWindow.PitchFreq / 2200) - 0.03)));
 
                 default:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(MainWindow._color1.Color));
+                    return _d2dContext.CreateSolidColorBrush(ToColor4(MainWindow._color1));
             }
         }
     }

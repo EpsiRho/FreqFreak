@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using FftSharp;
 using NAudio.CoreAudioApi;
 using NAudio.Dmo;
@@ -223,6 +224,22 @@ namespace FreqFreak
         // Audio Capture hook, called whenever _capture has data availible
         private static void CaptureOnDataAvailable(object? sender, WaveInEventArgs e)
         {
+            //var time = MainWindow.displayFpsMeter.GetLastFrameTime();
+            //if (time < DateTime.Now - TimeSpan.FromSeconds(1))
+            //{
+            //    _captureCTS.Cancel();
+            //    MainWin.Dispatcher.Invoke(() =>
+            //    {
+            //        MainWin.toggleVis.Text = "Resume Visualizer";
+            //    });
+            //    if(OptionsWindow != null)
+            //    {
+            //        OptionsWindow.Dispatcher.Invoke(() =>
+            //        {
+            //            ((Path)OptionsWindow.PlayPauseButton.Content).Data = Geometry.Parse("F1 M 17.5 10 L 5 18.75 L 5 1.25 Z M 6.25 16.347656 L 15.322266 10 L 6.25 3.652344 Z ");
+            //        });
+            //    }
+            //}
             if (MainWindow.FVZMode) return;
 
             try

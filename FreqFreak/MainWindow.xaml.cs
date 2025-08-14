@@ -66,16 +66,16 @@ namespace FreqFreak
         public IntPtr _hwnd = -1;
         public static TrayIconWithContextMenu? _trayIcon;
         private static System.Drawing.Icon? _icon;
-        public static SolidColorBrush _color1 = new(); // Bars 1
-        public static SolidColorBrush _color2 = new(); // Bars 2
-        public static SolidColorBrush _color3 = new(); // Peaks 1
-        public static SolidColorBrush _color4 = new(); // Peaks 2
+        public static Color _color1 = new(); // Bars 1
+        public static Color _color2 = new(); // Bars 2
+        public static Color _color3 = new(); // Peaks 1
+        public static Color _color4 = new(); // Peaks 2
         public static Color[] colorArrayGradient = new Color[12]; // Rainbow / Custom gradients(?)
         public static Color[] colorPeakArrayGradient = new Color[12]; // Rainbow / Custom gradients(?)
-        public static LinearGradientBrush _colorGradientBrush = new(); // Rainbow gradient brush for vertical
-        public static LinearGradientBrush _colorPeaksGradientBrush = new(); // Rainbow gradient brush for vertical
-        public static LinearGradientBrush _gradient = new();
-        public static LinearGradientBrush _peakGradient = new();
+        //public static LinearGradientBrush _colorGradientBrush = new(); // Rainbow gradient brush for vertical
+        //public static LinearGradientBrush _colorPeaksGradientBrush = new(); // Rainbow gradient brush for vertical
+        //public static LinearGradientBrush _gradient = new();
+        //public static LinearGradientBrush _peakGradient = new();
         public static double PitchFreq = 0;
         public static double BassAmplitude = 0;
         public static string PitchText = "None";
@@ -1027,8 +1027,7 @@ namespace FreqFreak
         // Render Pipe
         private void OnRender(object? sender, EventArgs e)
         {
-            //displayFpsMeter.Tick();
-            if(NormalDragHandler.IsDragging)
+            if (NormalDragHandler.IsDragging)
             {
                 return;
             }
@@ -1124,10 +1123,14 @@ namespace FreqFreak
                     {
                         return;
                     }
-                    VisCanvas.UpdatePlane(frame, frameR);
+                    Task.Run(() =>
+                    {
+                        VisCanvas.UpdatePlane(frame, frameR);
+
+                    });
                 }
 
-                CenterLine.Fill = _color3;
+                CenterLine.Fill = new SolidColorBrush(_color3);
                 UpdateRotation();
             }
             catch (Exception)
@@ -1142,14 +1145,14 @@ namespace FreqFreak
                 Visualizer.UpdateSettings = false;
                 var opts = Visualizer.InstanceOptions;
 
-                _color1 = new SolidColorBrush(opts._barColor1);
-                _color2 = new SolidColorBrush(opts._barColor2);
-                _color3 = new SolidColorBrush(opts._peakColor);
-                _color4 = new SolidColorBrush(opts._peakColor2);
-                _gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
-                _peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
-                _colorGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customNoteGradientColors);
-                _colorPeaksGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customPeakNoteGradientColors);
+                _color1 = opts._barColor1;
+                _color2 = opts._barColor2;
+                _color3 = opts._peakColor;
+                _color4 = opts._peakColor2;
+                //_gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
+                //_peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
+                //_colorGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customNoteGradientColors);
+                //_colorPeaksGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customPeakNoteGradientColors);
                 colorArrayGradient = Visualizer.InstanceOptions._customNoteGradientColors;
                 colorPeakArrayGradient = Visualizer.InstanceOptions._customPeakNoteGradientColors;
 
@@ -1337,7 +1340,7 @@ namespace FreqFreak
                         wait = false;
                         Dispatcher.Invoke(() =>
                         {
-                            var colorArr = new[] { _color1.Color, _color2.Color, _color3.Color, _color4.Color };
+                            var colorArr = new[] { _color1, _color2, _color3, _color4 };
                             var hsvArr = new (double h, double s, double v)[4];
                             if(colorArrayGradient == null || colorPeakArrayGradient == null)
                             {
@@ -1370,7 +1373,7 @@ namespace FreqFreak
                                     clrGradient[i] = clr;
                                 }
                                 colorArrayGradient = clrGradient;
-                                _colorGradientBrush = GetVerticalGradientBrush(clrGradient);
+                                //_colorGradientBrush = GetVerticalGradientBrush(clrGradient);
                             }
 
                             if (opts._peakColorType == ColorMode.GradientVertical || opts._peakColorType == ColorMode.GradientHorizontal
@@ -1387,15 +1390,15 @@ namespace FreqFreak
                                     clrPeaksGradient[i] = clr;
                                 }
                                 colorPeakArrayGradient = clrPeaksGradient;
-                                _colorPeaksGradientBrush = GetVerticalGradientBrush(clrPeaksGradient);
+                                //_colorPeaksGradientBrush = GetVerticalGradientBrush(clrPeaksGradient);
                             }
 
-                            _color1 = new SolidColorBrush(ColorFromHSV(hsvArr[0].h, hsvArr[0].s, hsvArr[0].v, _color1.Color.A));
-                            _color2 = new SolidColorBrush(ColorFromHSV(hsvArr[1].h, hsvArr[1].s, hsvArr[1].v, _color2.Color.A));
-                            _color3 = new SolidColorBrush(ColorFromHSV(hsvArr[2].h, hsvArr[2].s, hsvArr[2].v, _color3.Color.A));
-                            _color4 = new SolidColorBrush(ColorFromHSV(hsvArr[3].h, hsvArr[3].s, hsvArr[3].v, _color4.Color.A));
-                            _gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
-                            _peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
+                            _color1 = ColorFromHSV(hsvArr[0].h, hsvArr[0].s, hsvArr[0].v, _color1.A);
+                            _color2 = ColorFromHSV(hsvArr[1].h, hsvArr[1].s, hsvArr[1].v, _color2.A);
+                            _color3 = ColorFromHSV(hsvArr[2].h, hsvArr[2].s, hsvArr[2].v, _color3.A);
+                            _color4 = ColorFromHSV(hsvArr[3].h, hsvArr[3].s, hsvArr[3].v, _color4.A);
+                            //_gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
+                            //_peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
                         });
                         cfWatch.Restart();
 
@@ -1407,16 +1410,16 @@ namespace FreqFreak
                         wait = true;
                         Dispatcher.Invoke(() =>
                         {
-                            _color1 = new SolidColorBrush(opts._barColor1);
-                            _color2 = new SolidColorBrush(opts._barColor2);
-                            _color3 = new SolidColorBrush(opts._peakColor);
-                            _color4 = new SolidColorBrush(opts._peakColor2);
+                            _color1 = opts._barColor1;
+                            _color2 = opts._barColor2;
+                            _color3 = opts._peakColor;
+                            _color4 = opts._peakColor2;
                             colorArrayGradient = Visualizer.InstanceOptions._customNoteGradientColors;
                             colorPeakArrayGradient = Visualizer.InstanceOptions._customPeakNoteGradientColors;
-                            _gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
-                            _peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
-                            _colorGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customNoteGradientColors);
-                            _colorPeaksGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customPeakNoteGradientColors);
+                            //_gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
+                            //_peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
+                            //_colorGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customNoteGradientColors);
+                            //_colorPeaksGradientBrush = GetVerticalGradientBrush(Visualizer.InstanceOptions._customPeakNoteGradientColors);
                         });
                     }
                 }
@@ -1473,7 +1476,7 @@ namespace FreqFreak
                                 clrGradient[i] = clr;
                             }
                             colorArrayGradient = clrGradient;
-                            _colorGradientBrush = GetVerticalGradientBrush(clrGradient);
+                            //_colorGradientBrush = GetVerticalGradientBrush(clrGradient);
                         }
 
                         if (opts._peakColorType == ColorMode.GradientVertical || opts._peakColorType == ColorMode.GradientHorizontal
@@ -1490,7 +1493,7 @@ namespace FreqFreak
                                 clrPeaksGradient[i] = clr;
                             }
                             colorPeakArrayGradient = clrPeaksGradient;
-                            _colorPeaksGradientBrush = GetVerticalGradientBrush(clrPeaksGradient);
+                            //_colorPeaksGradientBrush = GetVerticalGradientBrush(clrPeaksGradient);
                         }
                     }
                     else // rotateMode == 2
@@ -1527,7 +1530,7 @@ namespace FreqFreak
                             Dispatcher.Invoke(() =>
                             {
                                 colorArrayGradient = clrGradient;
-                                _colorGradientBrush = GetVerticalGradientBrush(clrGradient);
+                                //_colorGradientBrush = GetVerticalGradientBrush(clrGradient);
                             });
                         }
 
@@ -1547,19 +1550,19 @@ namespace FreqFreak
                             Dispatcher.Invoke(() =>
                             {
                                 colorPeakArrayGradient = clrPeaksGradient;
-                                _colorPeaksGradientBrush = GetVerticalGradientBrush(clrPeaksGradient);
+                                //_colorPeaksGradientBrush = GetVerticalGradientBrush(clrPeaksGradient);
                             });
                         }
                     }
 
                     Dispatcher.Invoke(() =>
                     {
-                        _color1 = new SolidColorBrush(c1);
-                        _color2 = new SolidColorBrush(c2);
-                        _color3 = new SolidColorBrush(c3);
-                        _color4 = new SolidColorBrush(c4);
-                        _gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
-                        _peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
+                        _color1 = c1;
+                        _color2 = c2;
+                        _color3 = c3;
+                        _color4 = c4;
+                        //_gradient = GetVerticalGradientBrush(_color1.Color, _color2.Color);
+                        //_peakGradient = GetVerticalGradientBrush(_color3.Color, _color4.Color);
                     });
                 }
                 Thread.Sleep(16); // 60 fps

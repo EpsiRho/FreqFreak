@@ -47,5 +47,9 @@ namespace FreqFreak
                 sw.Restart();
             }
         }
+        public DateTime GetLastFrameTime()
+        {
+            return DateTime.Now - TimeSpan.FromMilliseconds(sw.Elapsed.TotalMilliseconds);
+        }
     }
 }

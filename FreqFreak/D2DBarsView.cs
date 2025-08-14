@@ -366,12 +366,17 @@ namespace FreqFreak
                     if (pointsL.Count() > 0) // If there are more points to draw, add them
                     {
                         pointsL.Reverse();
-                        var l = points.Last();
-                        var l2 = pointsL.First();
-                        l.X = (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
-                        l2.X = (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
-                        points.Add(l);
-                        points.Add(l2);
+                        if (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Center)
+                        {
+                            var l = points.Last();
+                            var l2 = pointsL.First();
+                            points.Remove(l);
+                            pointsL.Remove(l2);
+                            l.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
+                            l2.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
+                            points.Add(l);
+                            points.Add(l2);
+                        }
                         points.AddRange(pointsL);
                         var geomL = BuildCatmullRomGeometry(points, connectLines);
                         _d2dContext.DrawGeometry(geomL, linebrush, thickness);
@@ -512,7 +517,17 @@ namespace FreqFreak
             try
             {
                 var layer = UpdateBars(frameL, frameR);
+                if (layer == null)
+                {
+                    return;
+                }
+
                 layer = UpdatePeakRectangles(layer);
+
+                if(layer == null)
+                {
+                    return;
+                }
 
                 _layerQueue.Enqueue(layer);
 
@@ -581,6 +596,11 @@ namespace FreqFreak
                     double valR = frameRight[i] *= height;
                     if (valR > localMax) localMax = valR;
                 }
+            }
+
+            if(barLen != MainWindow._peaks.Length)
+            {
+                return null;
             }
 
             var Layer = new Layer(
@@ -914,6 +934,11 @@ namespace FreqFreak
             var barArr = MainWindow._peaks;
             var barArrL = MainWindow._peaksRight;
 
+            if(barArr.Length != layer.Bars.Length)
+            {
+                return null;
+            }
+
             switch (pos)
             {
                 // Bottom / Top
@@ -1127,8 +1152,8 @@ namespace FreqFreak
 
             var clrMode = peaks ? Visualizer.InstanceOptions._peakColorType : Visualizer.InstanceOptions._barColorType;
             var type = clrMode == ColorMode.Match ? Visualizer.InstanceOptions._barColorType : Visualizer.InstanceOptions._peakColorType;
-            var clr1 = peaks && clrMode != ColorMode.Match ? MainWindow._color3.Color : MainWindow._color1.Color;
-            var clr2 = peaks && clrMode != ColorMode.Match ? MainWindow._color4.Color : MainWindow._color2.Color;
+            var clr1 = peaks && clrMode != ColorMode.Match ? MainWindow._color3 : MainWindow._color1;
+            var clr2 = peaks && clrMode != ColorMode.Match ? MainWindow._color4 : MainWindow._color2;
             var grdClrs = peaks && clrMode != ColorMode.Match ? MainWindow.colorPeakArrayGradient : MainWindow.colorArrayGradient;
 
             switch (type)
@@ -1225,7 +1250,7 @@ namespace FreqFreak
                             (MainWindow.PitchFreq / 2200) - 0.03)));
 
                 default:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(MainWindow._color1.Color));
+                    return _d2dContext.CreateSolidColorBrush(ToColor4(MainWindow._color1));
             }
         }
         private ID2D1Brush CreateBrushForPeaksLayer(int index,int total, float width, float height, float top, double max)
@@ -1238,8 +1263,8 @@ namespace FreqFreak
             }
 
             var type = Visualizer.InstanceOptions._peakColorType == ColorMode.Match ? Visualizer.InstanceOptions._barColorType : Visualizer.InstanceOptions._peakColorType;
-            var clr1 = Visualizer.InstanceOptions._peakColorType != ColorMode.Match ? MainWindow._color3.Color : MainWindow._color1.Color;
-            var clr2 = Visualizer.InstanceOptions._peakColorType != ColorMode.Match ? MainWindow._color4.Color : MainWindow._color2.Color;
+            var clr1 = Visualizer.InstanceOptions._peakColorType != ColorMode.Match ? MainWindow._color3 : MainWindow._color1;
+            var clr2 = Visualizer.InstanceOptions._peakColorType != ColorMode.Match ? MainWindow._color4 : MainWindow._color2;
             var grdClrs = Visualizer.InstanceOptions._peakColorType != ColorMode.Match ? MainWindow.colorPeakArrayGradient : MainWindow.colorArrayGradient;
 
             switch (type)
@@ -1302,8 +1327,8 @@ namespace FreqFreak
             }
 
             var clrMode = peaks ? Visualizer.InstanceOptions._peakColorType : Visualizer.InstanceOptions._barColorType;
-            var clr1 = peaks ? MainWindow._color3.Color : MainWindow._color1.Color;
-            var clr2 = peaks ? MainWindow._color4.Color : MainWindow._color2.Color;
+            var clr1 = peaks ? MainWindow._color3 : MainWindow._color1;
+            var clr2 = peaks ? MainWindow._color4 : MainWindow._color2;
             var grdClrs = peaks ? MainWindow.colorPeakArrayGradient : MainWindow.colorArrayGradient;
 
 
@@ -1380,7 +1405,7 @@ namespace FreqFreak
                             (MainWindow.PitchFreq / 2200) - 0.03)));
 
                 default:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(MainWindow._color1.Color));
+                    return _d2dContext.CreateSolidColorBrush(ToColor4(MainWindow._color1));
             }
         }
     }
