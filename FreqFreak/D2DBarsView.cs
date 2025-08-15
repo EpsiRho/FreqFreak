@@ -6,6 +6,7 @@ using Vortice.Direct2D1;
 using Vortice.DXGI;
 using Vortice.Mathematics;
 using Vortice.Wpf;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace FreqFreak
 {
@@ -69,6 +70,73 @@ namespace FreqFreak
 
             return false;
         }
+        static void CollectBrush(ID2D1Brush? b, HashSet<IntPtr> seen, List<IDisposable> bag)
+        {
+            if (b is null) return;
+            var ptr = b.NativePointer;
+            if (ptr != IntPtr.Zero && seen.Add(ptr))
+                bag.Add(b);
+        }
+
+        private static void DisposeLayerResources(Layer? layer)
+        {
+            if (layer is null) return;
+
+            // avoid double-dispose of shared brushes
+            var seen = new HashSet<IntPtr>();
+            var toDispose = new List<IDisposable>(64);
+
+            // Per-bar brushes in the tuple array
+            var props = layer.BarProperties;
+            for (int i = 0; i < props.Length; i++)
+            {
+                var p = props[i];
+
+                CollectBrush(p.BrushM, seen, toDispose);
+                CollectBrush(p.BrushL, seen, toDispose);
+                CollectBrush(p.BrushPM, seen, toDispose);
+                CollectBrush(p.BrushPL, seen, toDispose);
+
+                // null the references so the layer is "safe" if it gets reused accidentally
+                p.BrushM = null; p.BrushL = null; p.BrushPM = null; p.BrushPL = null;
+                props[i] = p;
+            }
+
+            // Line brushes
+            if (layer.lineBrushes != null)
+            {
+                for (int i = 0; i < layer.lineBrushes.Length; i++)
+                {
+                    var b = layer.lineBrushes[i];
+                    CollectBrush(b, seen, toDispose);
+                    layer.lineBrushes[i] = null;
+                }
+            }
+
+            // Vertical gradient brushes
+            if (layer.VerticalBrushs != null)
+            {
+                for (int i = 0; i < layer.VerticalBrushs.Length; i++)
+                {
+                    var b = layer.VerticalBrushs[i];
+                    CollectBrush(b, seen, toDispose);
+                    layer.VerticalBrushs[i] = null;
+                }
+            }
+
+            // Delete, delete, delete, delete, delete
+            foreach (var d in toDispose)
+            {
+                try
+                { 
+                    d.Dispose(); 
+                } 
+                catch(Exception)
+                { 
+
+                }
+            }
+        }
 
         private void OnDraw(object? sender, DrawEventArgs e)
         {
@@ -127,20 +195,22 @@ namespace FreqFreak
             // Show current layer or if there is none, show the last layer
             Layer displayLayer = null;
             _layerQueue.TryDequeue(out displayLayer);
+
             if (displayLayer == null)
             {
                 displayLayer = _previousLayer;
             }
             else
             {
-                //_layerQueue.TryDequeue(out displayLayer);
-                _previousLayer = displayLayer;
+                var old = Interlocked.Exchange(ref _previousLayer, displayLayer);
+                DisposeLayerResources(old);
             }
 
             // If there is no layer there is no draw
             if (displayLayer == null)
             {
                 _d2dContext.EndDraw();
+                DisposeLayerResources(displayLayer);
                 return;
             }
 
@@ -186,6 +256,7 @@ namespace FreqFreak
                     if (IsUnsafeBrush(prop.BrushM))
                     {
                         _d2dContext.EndDraw();
+                        DisposeLayerResources(displayLayer);
                         return;
                     }
 
@@ -224,6 +295,7 @@ namespace FreqFreak
                             if (IsUnsafeBrush(prop.BrushL))
                             {
                                 _d2dContext.EndDraw();
+                                DisposeLayerResources(displayLayer);
                                 return;
                             };
 
@@ -252,21 +324,21 @@ namespace FreqFreak
                     }
 
                     // Dispose brushes immediately after use to prevent mem leak.
-                    if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-                    {
-                        prop.BrushM.Dispose();
-                    }
-                    displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, null, prop.BrushL, prop.BrushPM, prop.BrushPL);
+                    //if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
+                    //{
+                    //    prop.BrushM.Dispose();
+                    //}
+                    //displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, null, prop.BrushL, prop.BrushPM, prop.BrushPL);
 
                     // Dispose the second brush if needed
-                    if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-                    {
-                        if (!IsUnsafeBrush(prop.BrushL))
-                        {
-                            prop.BrushL.Dispose();
-                            displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, null, prop.BrushPM, prop.BrushPL);
-                        }
-                    }
+                    //if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
+                    //{
+                    //    if (!IsUnsafeBrush(prop.BrushL))
+                    //    {
+                    //        prop.BrushL.Dispose();
+                    //        displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, null, prop.BrushPM, prop.BrushPL);
+                    //    }
+                    //}
 
                 }
             }
@@ -281,6 +353,7 @@ namespace FreqFreak
                     if (IsUnsafeBrush(prop.BrushPM))
                     {
                         _d2dContext.EndDraw();
+                        DisposeLayerResources(displayLayer);
                         return;
                     };
 
@@ -315,6 +388,7 @@ namespace FreqFreak
                             if (IsUnsafeBrush(prop.BrushPL))
                             {
                                 _d2dContext.EndDraw();
+                                DisposeLayerResources(displayLayer);
                                 return;
                             };
 
@@ -347,6 +421,7 @@ namespace FreqFreak
                         if (IsUnsafeBrush(prop.BrushPL))
                         {
                             _d2dContext.EndDraw();
+                            DisposeLayerResources(displayLayer);
                             return;
                         };
 
@@ -358,15 +433,15 @@ namespace FreqFreak
                     }
 
                     // Dispose brushes immediately after use to prevent mem leak.
-                   prop.BrushPM.Dispose();
-                    displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, null, prop.BrushPL);
+                   //prop.BrushPM.Dispose();
+                   // displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, null, prop.BrushPL);
 
-                    // Dispose the second brush if needed
-                    if (!IsUnsafeBrush(prop.BrushPL))
-                    {
-                        prop.BrushPL.Dispose();
-                        displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, prop.BrushPM, null);
-                    }
+                   // // Dispose the second brush if needed
+                   // if (!IsUnsafeBrush(prop.BrushPL))
+                   // {
+                   //     prop.BrushPL.Dispose();
+                   //     displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, prop.BrushPM, null);
+                   // }
                 }
             }
 
@@ -377,6 +452,7 @@ namespace FreqFreak
                 if (IsUnsafeBrush(linebrush))
                 {
                     _d2dContext.EndDraw();
+                    DisposeLayerResources(displayLayer);
                     return;
                 };
 
@@ -414,13 +490,14 @@ namespace FreqFreak
                         if (geom == null)
                         {
                             _d2dContext.EndDraw();
+                            DisposeLayerResources(displayLayer);
                             return;
                         };
 
                         _d2dContext.DrawGeometry(geom, linebrush, thickness);
                         geom.Dispose();
                     }
-                    displayLayer.lineBrushes[0].Dispose();
+                    //displayLayer.lineBrushes[0].Dispose();
                 }
             }
 
@@ -431,6 +508,7 @@ namespace FreqFreak
                 if (IsUnsafeBrush(linebrush))
                 {
                     _d2dContext.EndDraw();
+                    DisposeLayerResources(displayLayer);
                     return;
                 };
 
@@ -473,17 +551,18 @@ namespace FreqFreak
                         _d2dContext.DrawGeometry(geom, linebrush, thickness);
                         geom.Dispose();
                     }
-                    displayLayer.lineBrushes[1].Dispose();
+                    //displayLayer.lineBrushes[1].Dispose();
                 }
             }
 
-            if (!IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-            {
-                displayLayer.VerticalBrushs[0].Dispose();
-            }
+            //if (!IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
+            //{
+            //    displayLayer.VerticalBrushs[0].Dispose();
+            //}
 
             // Finish drawing
             _d2dContext.EndDraw();
+            DisposeLayerResources(displayLayer);
         }
 
         private ID2D1PathGeometry BuildCatmullRomGeometry(List<Vector2> pts, bool open)
