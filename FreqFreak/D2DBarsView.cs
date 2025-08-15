@@ -7,7 +7,6 @@ using Vortice.Direct2D1.Effects;
 using Vortice.DXGI;
 using Vortice.Mathematics;
 using Vortice.Wpf;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace FreqFreak
 {
@@ -60,7 +59,7 @@ namespace FreqFreak
                         Thread.Sleep(100);
                         continue;
                     }
-
+            
                     _layerDisposeQueue.TryDequeue(out Layer? layer);
                     DisposeLayer(layer);
                 }
@@ -92,6 +91,7 @@ namespace FreqFreak
         private void QueueLayerDispose(Layer? layer)
         {
             _layerDisposeQueue.Enqueue(layer);
+            //DisposeLayer(layer);
         }
         private async void DisposeLayer(Layer? layer)
         {
@@ -128,31 +128,23 @@ namespace FreqFreak
             }
 
             // Line brushes
-            if (layer.lineBrushes != null)
+            if (!IsUnsafeBrush(layer.lineBrushes[0]))
             {
-                for (int i = 0; i < layer.lineBrushes.Length; i++)
-                {
-                    var b = layer.lineBrushes[i];
-                    if (!IsUnsafeBrush(b))
-                    {
-                        b.Dispose();
-                    }
-                    layer.lineBrushes[i] = null;
-                }
+                layer.lineBrushes[0].Dispose();
+            }
+            if (!IsUnsafeBrush(layer.lineBrushes[1]))
+            {
+                layer.lineBrushes[1].Dispose();
             }
 
             // Vertical gradient brushes
-            if (layer.VerticalBrushs != null)
+            if (!IsUnsafeBrush(layer.VerticalBrushs[0]))
             {
-                for (int i = 0; i < layer.VerticalBrushs.Length; i++)
-                {
-                    var b = layer.VerticalBrushs[i];
-                    if (!IsUnsafeBrush(b))
-                    {
-                        b.Dispose();
-                    }
-                    layer.VerticalBrushs[i] = null;
-                }
+                layer.VerticalBrushs[0].Dispose();
+            }
+            if (!IsUnsafeBrush(layer.VerticalBrushs[0]))
+            {
+                layer.VerticalBrushs[0].Dispose();
             }
         }
 
@@ -182,6 +174,7 @@ namespace FreqFreak
             _d2dContext.BeginDraw();
             _d2dContext.Clear(clearColor);
 
+            _d2dContext.AntialiasMode = AntialiasMode.Aliased;
             // Rotate this bitch
             // More accurately:
             // - Find the content's center
@@ -219,6 +212,7 @@ namespace FreqFreak
             }
             else
             {
+                //_previousLayer = displayLayer;
                 var old = Interlocked.Exchange(ref _previousLayer, displayLayer);
                 QueueLayerDispose(old);
             }
@@ -226,8 +220,7 @@ namespace FreqFreak
             // If there is no layer there is no draw
             if (displayLayer == null)
             {
-                _d2dContext.EndDraw();
-                QueueLayerDispose(displayLayer);
+                //_d2dContext.EndDraw();
                 return;
             }
 
@@ -245,9 +238,6 @@ namespace FreqFreak
             if (currentMode == VisualizationMode.OuterCircle ||
                 currentMode == VisualizationMode.InnerCircle)
             {
-                //var size = _targetBitmap.Size;
-                //centerX = size.Width * 0.5f;
-                //centerY = size.Height * 0.5f;
                 centerX = contentCenter.X;
                 centerY = contentCenter.Y;
                 rotateBars = true;
@@ -272,8 +262,7 @@ namespace FreqFreak
                     }
                     if (IsUnsafeBrush(prop.BrushM))
                     {
-                        _d2dContext.EndDraw();
-                        QueueLayerDispose(displayLayer);
+                        //_d2dContext.EndDraw();
                         return;
                     }
 
@@ -311,8 +300,7 @@ namespace FreqFreak
                             }
                             if (IsUnsafeBrush(prop.BrushL))
                             {
-                                _d2dContext.EndDraw();
-                                QueueLayerDispose(displayLayer);
+                                //_d2dContext.EndDraw();
                                 return;
                             };
 
@@ -369,8 +357,7 @@ namespace FreqFreak
                     var prop = displayLayer.BarProperties[i];
                     if (IsUnsafeBrush(prop.BrushPM))
                     {
-                        _d2dContext.EndDraw();
-                        QueueLayerDispose(displayLayer);
+                        //_d2dContext.EndDraw();
                         return;
                     };
 
@@ -404,8 +391,7 @@ namespace FreqFreak
                         {
                             if (IsUnsafeBrush(prop.BrushPL))
                             {
-                                _d2dContext.EndDraw();
-                                QueueLayerDispose(displayLayer);
+                                //_d2dContext.EndDraw();
                                 return;
                             };
 
@@ -437,8 +423,7 @@ namespace FreqFreak
 
                         if (IsUnsafeBrush(prop.BrushPL))
                         {
-                            _d2dContext.EndDraw();
-                            QueueLayerDispose(displayLayer);
+                            //_d2dContext.EndDraw();
                             return;
                         };
 
@@ -468,8 +453,7 @@ namespace FreqFreak
                 var linebrush = displayLayer.lineBrushes[0];
                 if (IsUnsafeBrush(linebrush))
                 {
-                    _d2dContext.EndDraw();
-                    QueueLayerDispose(displayLayer);
+                    //_d2dContext.EndDraw();
                     return;
                 };
 
@@ -478,7 +462,7 @@ namespace FreqFreak
                 if (points.Count > 0)
                 {
                     var pointsL = displayLayer.leftPoints;
-                    if (pointsL.Count() > 0) // If there are more points to draw, add them
+                    if (pointsL.Count > 0) // If there are more points to draw, add them
                     {
                         pointsL.Reverse();
                         if (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Center)
@@ -506,8 +490,7 @@ namespace FreqFreak
                         var geom = BuildCatmullRomGeometry(points, connectLines);
                         if (geom == null)
                         {
-                            _d2dContext.EndDraw();
-                            QueueLayerDispose(displayLayer);
+                            //_d2dContext.EndDraw();
                             return;
                         };
 
@@ -524,8 +507,7 @@ namespace FreqFreak
                 var linebrush = displayLayer.lineBrushes[1];
                 if (IsUnsafeBrush(linebrush))
                 {
-                    _d2dContext.EndDraw();
-                    QueueLayerDispose(displayLayer);
+                    //_d2dContext.EndDraw();
                     return;
                 };
 
@@ -561,7 +543,7 @@ namespace FreqFreak
                         var geom = BuildCatmullRomGeometry(points, connectLines);
                         if (geom == null)
                         {
-                            _d2dContext.EndDraw();
+                            //_d2dContext.EndDraw();
                             return;
                         }
 
@@ -579,7 +561,7 @@ namespace FreqFreak
 
             // Finish drawing
             _d2dContext.EndDraw();
-            QueueLayerDispose(displayLayer);
+            //QueueLayerDispose(displayLayer);
         }
 
 
@@ -627,7 +609,6 @@ namespace FreqFreak
                 sink.EndFigure(end);
                 sink.Close();
             }
-            var bounds = geom.GetBounds();
             return geom;
         }
 
