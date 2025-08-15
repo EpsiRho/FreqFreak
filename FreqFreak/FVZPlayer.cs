@@ -10,7 +10,6 @@ public class FVZPlayer : INotifyPropertyChanged
     private static FrequencyVisualizer? _fv;
     private static PlaybackTimer? _playbackTimer = new();
     private static AudioFileReader? _audioFile;
-    private static OffsetSampleProvider? _OffsetAudioProvider;
     private static WaveOutEvent? _waveOut = new WaveOutEvent();
     private static CancellationTokenSource? _cts = new CancellationTokenSource();
     private static int _lastFrame = -1;
@@ -104,7 +103,14 @@ public class FVZPlayer : INotifyPropertyChanged
                 return "00:00.00";
             }
 
-            return $"{_audioFile.CurrentTime.ToString("hh\\:mm\\:ss\\.ff")}/{_audioFile.TotalTime.ToString("hh\\:mm\\:ss\\.ff")}";
+            try
+            {
+                return $"{_audioFile.CurrentTime.ToString("hh\\:mm\\:ss\\.ff")}/{_audioFile.TotalTime.ToString("hh\\:mm\\:ss\\.ff")}";
+            }
+            catch (Exception)
+            {
+                return "";
+            }
         }
     }
 

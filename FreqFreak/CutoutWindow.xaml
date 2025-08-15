@@ -1,0 +1,26 @@
+﻿<Window x:Class="FreqFreak.CutoutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FreqFreak"
+        mc:Ignorable="d"
+        AllowsTransparency="True"
+        WindowStyle="None"
+        Background="Transparent"
+        Title="CutoutWindow" Height="450" Width="800">
+    <local:NoLayoutClipGrid x:Name="MainGrid" RenderTransformOrigin="0.5,0.5" ClipToBounds="False">
+        <local:NoLayoutClipGrid.RenderTransform>
+            <TransformGroup>
+                <RotateTransform x:Name="MainGridRotation" Angle="0"/>
+                <ScaleTransform x:Name="MainGridScale" ScaleX="1" ScaleY="1"/>
+                <TranslateTransform x:Name="MainGridTranslation"/>
+            </TransformGroup>
+        </local:NoLayoutClipGrid.RenderTransform>
+        <Image x:Name="MainImage" 
+               IsHitTestVisible="False"
+               Focusable="False"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"/>
+    </local:NoLayoutClipGrid>
+</Window>

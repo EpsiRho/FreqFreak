@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Platforms>AnyCPU;x86</Platforms>
+    <Platforms>AnyCPU;x86;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,11 +24,30 @@
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.3.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="PixiEditor.ColorPicker" Version="3.4.2" />
+    <PackageReference Include="Vortice.Direct2D1" Version="3.6.2" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
+    <PackageReference Include="Vortice.Direct3D9" Version="3.6.2" />
+    <PackageReference Include="Vortice.DirectX" Version="3.6.2" />
+    <PackageReference Include="Vortice.DXGI" Version="3.6.2" />
+    <PackageReference Include="Vortice.Win32" Version="2.2.7" />
+    <PackageReference Include="Vortice.Wpf" Version="3.6.2" />
     <PackageReference Include="ZstdNet" Version="1.4.5" />
 	  
   </ItemGroup>
 
-  <ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="ZstdNet" Version="1.4.5" ExcludeAssets="build" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(RuntimeIdentifier)'=='win-x64'">
+		<None Include="$(NuGetPackageRoot)zstdnet\1.4.5\build\x64\libzstd.dll" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(RuntimeIdentifier)'=='win-x86'">
+		<None Include="$(NuGetPackageRoot)zstdnet\1.4.5\build\x86\libzstd.dll" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+
+	<ItemGroup>
     <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
   </ItemGroup>
 
@@ -41,45 +60,49 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="NAudio">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Asio">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.Asio.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Core">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Midi">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.Midi.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.Wasapi">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.Wasapi.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.WinForms">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.WinForms.dll</HintPath>
-    </Reference>
-    <Reference Include="NAudio.WinMM">
-      <HintPath>C:\Users\jhset\Desktop\NAudio-master\NAudio\bin\Debug\net6.0-windows\NAudio.WinMM.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
     <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
+    <None Remove="Images\icon.png" />
+    <None Remove="Images\icon2.png" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll">
+    <Content Include="Images\icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Images\icon2.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll" />
+    <Reference Include="LibMaterial.NET">
+      <HintPath>C:\Users\jhset\Desktop\LibMaterial-main\.NET\bin\Release\net6.0-windows\LibMaterial.NET.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Asio">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.Asio.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Core">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Midi">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.Midi.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Wasapi">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.Wasapi.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.WinForms">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.WinForms.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.WinMM">
+      <HintPath>..\..\NAudio-per-process\NAudio\bin\Release\net6.0-windows\NAudio.WinMM.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x86\libzstd.dll" />
+    <None Remove="C:\Users\jhset\.nuget\packages\zstdnet\1.4.5\build\x64\libzstd.dll" />
   </ItemGroup>
 
   <ItemGroup>

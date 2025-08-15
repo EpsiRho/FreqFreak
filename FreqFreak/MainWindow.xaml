@@ -4,18 +4,31 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:FreqFreak"
+        xmlns:freq="FreqFreak"
         mc:Ignorable="d"
+        WindowStartupLocation="CenterScreen"
+        xmlns:vortice="clr-namespace:Vortice.Wpf;assembly=Vortice.Wpf"
         Title="MainWindow" Height="450" Width="800">
-    <Grid x:Name="MainGrid" RenderTransformOrigin="0.5,0.5" ClipToBounds="False">
-        <Grid.LayoutTransform>
-            <RotateTransform x:Name="MainGridLayout" Angle="90"/>
-        </Grid.LayoutTransform>
-        <TextBlock x:Name="FPSMeter" Text="N/A" 
-                   FontSize="24" Background="White" 
-                   VerticalAlignment="Top" Margin="0,10,0,0"
-                   Panel.ZIndex="2" Visibility="Hidden"/>
-        <Canvas x:Name="VisCanvas" Margin="0,0,0,0">
-            
-        </Canvas>
-    </Grid>
+    <local:NoLayoutClipGrid x:Name="MainGrid" RenderTransformOrigin="0.5,0.5" ClipToBounds="False">
+        <local:NoLayoutClipGrid.RenderTransform>
+            <TransformGroup>
+                <RotateTransform x:Name="MainGridRotation" Angle="0"/>
+                <ScaleTransform x:Name="MainGridScale" ScaleX="1" ScaleY="1"/>
+                <TranslateTransform x:Name="MainGridTranslation"/>
+            </TransformGroup>
+        </local:NoLayoutClipGrid.RenderTransform>
+        <local:FrequencyVorticeControl x:Name="VisCanvas" Margin="0,0,0,0" Visibility="Visible"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center"
+                                       ClipToBounds="False"/>
+        <local:OscilloscopeVorticeControl x:Name="OscView" Margin="0,0,0,0" Visibility="Visible"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Center"
+                                          ClipToBounds="False"/>
+        <Rectangle HorizontalAlignment="Stretch"
+                   Height="2"
+                   Visibility="Collapsed"
+                   x:Name="CenterLine"
+                   Fill="WhiteSmoke"/>
+    </local:NoLayoutClipGrid>
 </Window>
