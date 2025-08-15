@@ -1,8 +1,10 @@
 ﻿using System.Collections.Concurrent;
 using System.Numerics;
 using System.Windows;
+using System.Windows.Media.Media3D;
 using Vortice;
 using Vortice.Direct2D1;
+using Vortice.Direct2D1.Effects;
 using Vortice.DXGI;
 using Vortice.Mathematics;
 using Vortice.Wpf;
@@ -11,12 +13,33 @@ namespace FreqFreak
 {
     public class FrequencyVorticeControl : DrawingSurface
     {
-        private sealed record Layer(Vortice.Mathematics.Rect[] Bars, Vortice.Mathematics.Rect[] BarsL,
-                                    Vortice.Mathematics.Rect[] PeaksL, Vortice.Mathematics.Rect[] PeaksR,
-                                    List<Vector2> leftPoints, List<Vector2> rightPoints,
-                                    (double BarL, double BarR, double BarM, ID2D1Brush BrushM, ID2D1Brush BrushL, ID2D1Brush BrushPM, ID2D1Brush BrushPL)[] BarProperties,
-                                    ID2D1Brush[] lineBrushes, double max,
-                                    ID2D1LinearGradientBrush[] VerticalBrushs);
+        private class Layer
+        {
+            public Layer(int barLen, double m)
+            {
+                max = m;
+                Bars = new Vortice.Mathematics.Rect[barLen];
+                BarsL = new Vortice.Mathematics.Rect[barLen];
+                PeaksL = new Vortice.Mathematics.Rect[barLen];
+                PeaksR = new Vortice.Mathematics.Rect[barLen];
+                BarProperties = new (double, double, double)[barLen];
+            }
+            public Vortice.Mathematics.Rect[] Bars;
+            public Vortice.Mathematics.Rect[] BarsL;
+            public Vortice.Mathematics.Rect[] PeaksL;
+            public Vortice.Mathematics.Rect[] PeaksR;
+            public List<Vector2> leftPoints = new(); 
+            public List<Vector2> rightPoints = new();
+            public (double BarL, double BarR, double BarM)[] BarProperties; 
+            public double max;
+            public ID2D1Brush? barBrushM; 
+            public ID2D1Brush? barBrushL;
+            public ID2D1Brush? peakBrushM; 
+            public ID2D1Brush? peakBrushL;
+            public ID2D1Brush? lineBrushM; 
+            public ID2D1Brush? lineBrushL;
+        }
+
         private ConcurrentQueue<Layer> _layerQueue = new();
         private Layer _previousLayer;
 
@@ -68,6 +91,71 @@ namespace FreqFreak
             if (brushFactory.NativePointer != currentFactory.NativePointer) return true;
 
             return false;
+        }
+        private void SetBrushTransform(bool peak, int brushType, ID2D1Brush brush, Vortice.Mathematics.Rect rect, float maxH, float maxW, float val = 0)
+        {
+            if (peak)
+            {
+                if (brushType == 1) // horizontal: global gradient spanning entire chart width
+                {
+                    var transform = Matrix3x2.CreateScale(maxW, 1f) *
+                                    Matrix3x2.CreateTranslation(0, 0);
+
+                    brush.Transform = transform;
+                }
+                else if (brushType == 2) // vertical
+                {
+                    var transform = Matrix3x2.CreateScale(1f, maxH) *
+                                    Matrix3x2.CreateTranslation(0, 0);
+
+                    brush.Transform = transform;
+                }
+                else if (brushType == 3) // height
+                {
+                    float t = Math.Clamp(val / maxH, 0f, 1f);
+                    float BIG = 1e6f;
+
+                    var transform = Matrix3x2.CreateScale(BIG, 1f) *
+                                    Matrix3x2.CreateTranslation(rect.Left - t * BIG, rect.Top);
+
+                    brush.Transform = transform;
+                }
+            }
+            else
+            {
+                if (brushType == 1) // horizontal: global gradient spanning entire chart width
+                {
+                    var transform = Matrix3x2.CreateScale(maxW, 1f) *
+                                    Matrix3x2.CreateTranslation(0, 0);
+
+                    brush.Transform = transform;
+                }
+                else if (brushType == 2) // vertical
+                {
+                    var transform = Matrix3x2.CreateScale(1f, rect.Height) *
+                                    Matrix3x2.CreateTranslation(rect.Left, rect.Top);
+
+                    brush.Transform = transform;
+                }
+                else if (brushType == 3) // height
+                {
+                    float t = Math.Clamp(rect.Height / maxH, 0f, 1f);
+                    float BIG = 1e6f;
+
+                    var transform = Matrix3x2.CreateScale(BIG, 1f) *
+                                    Matrix3x2.CreateTranslation(rect.Left - t * BIG, rect.Top);
+
+                    brush.Transform = transform;
+                    //float t = Math.Clamp(rect.Height / maxH, 0f, 1f);
+                    //float L = 1f;
+                    //float BIG = 1e6f;
+
+                    //var transform = Matrix3x2.CreateScale(BIG, 1f) *
+                    //                Matrix3x2.CreateTranslation(rect.Left - t * BIG * L, rect.Top);
+
+                    //brush.Transform = transform;
+                }
+            }
         }
 
         private void OnDraw(object? sender, DrawEventArgs e)
@@ -164,28 +252,61 @@ namespace FreqFreak
                 centerY = contentCenter.Y;
                 rotateBars = true;
             }
+            int brushType = 0;
+            if (Visualizer.InstanceOptions._barColorType == ColorMode.DualColorHorizontal || 
+                Visualizer.InstanceOptions._barColorType == ColorMode.GradientHorizontal)
+            {
+                brushType = 1;
+            }
+            else if (Visualizer.InstanceOptions._barColorType == ColorMode.DualColorVertical ||
+                Visualizer.InstanceOptions._barColorType == ColorMode.GradientVertical)
+            {
+                brushType = 2;
+            }
+            else if (Visualizer.InstanceOptions._barColorType == ColorMode.DualColorHeight ||
+                Visualizer.InstanceOptions._barColorType == ColorMode.GradientHeight)
+            {
+                brushType = 3;
+            }
+
+            int peakBrushType = 0;
+            if (Visualizer.InstanceOptions._peakColorType == ColorMode.Match)
+            {
+                peakBrushType = brushType;
+            }
+            else if (Visualizer.InstanceOptions._peakColorType == ColorMode.DualColorHorizontal || 
+                Visualizer.InstanceOptions._peakColorType == ColorMode.GradientHorizontal)
+            {
+                peakBrushType = 1;
+            }
+            else if (Visualizer.InstanceOptions._peakColorType == ColorMode.DualColorVertical ||
+                Visualizer.InstanceOptions._peakColorType == ColorMode.GradientVertical)
+            {
+                peakBrushType = 2;
+            }
+            else if (Visualizer.InstanceOptions._peakColorType == ColorMode.DualColorHeight ||
+                Visualizer.InstanceOptions._peakColorType == ColorMode.GradientHeight)
+            {
+                peakBrushType = 3;
+            }
 
             // Render our bars if needed
             if (Visualizer.InstanceOptions._showBars && !onlyPeaks)
             {
+                if (IsUnsafeBrush(displayLayer.barBrushM))
+                {
+                    return;
+                }
+
                 // Render each bar
+                bool disposeLeft = false;
                 for (int i = 0; i < displayLayer.Bars.Length; i++)
                 {
                     var rect = displayLayer.Bars[i];
                     var prop = displayLayer.BarProperties[i];
-                    if (!IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-                    {
-                        prop.BrushM = displayLayer.VerticalBrushs[0];
 
-                        var transform = Matrix3x2.CreateScale(1f, rect.Height) *
-                        Matrix3x2.CreateTranslation(rect.Left, rect.Top);
+                    SetBrushTransform(false, brushType, displayLayer.barBrushM, rect, fh, fw);
 
-                        prop.BrushM.Transform = transform;
-                    }
-                    if (IsUnsafeBrush(prop.BrushM))
-                    {
-                        return;
-                    }
 
                     // If we want to show circles:
                     if (rotateBars)
@@ -210,18 +331,18 @@ namespace FreqFreak
                         var originalTransform = _d2dContext.Transform;
                         var rotMatrix = Matrix3x2.CreateRotation((float)rotation, pivot);
                         _d2dContext.Transform = rotMatrix * originalTransform;
-                        _d2dContext.FillRectangle(rect, prop.BrushM);
+                        _d2dContext.FillRectangle(rect, displayLayer.barBrushM);
                         _d2dContext.Transform = originalTransform;
 
                         if (stereo)
                         {
-                            if (!IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
+                            if (IsUnsafeBrush(displayLayer.barBrushL))
                             {
-                                prop.BrushL = displayLayer.VerticalBrushs[0];
+                                return;
                             }
-                            if (IsUnsafeBrush(prop.BrushL)) return;
-
                             var rectL = displayLayer.BarsL[i];
+                            SetBrushTransform(false, brushType, displayLayer.barBrushL, rectL, fh, fw);
+
                             var originalTransformL = _d2dContext.Transform;
 
 
@@ -235,44 +356,39 @@ namespace FreqFreak
 
                             var rotMatrixL = Matrix3x2.CreateRotation((float)rotationMirror, pivotMirror);
                             _d2dContext.Transform = rotMatrixL * originalTransformL;
-                            _d2dContext.FillRectangle(rectL, prop.BrushL);
+                            _d2dContext.FillRectangle(rectL, displayLayer.barBrushL);
                             _d2dContext.Transform = originalTransformL;
+                            disposeLeft = true;
                         }
 
                     }
                     else // Otherwise we can just put the rect where it wants to be
                     {
-                        _d2dContext.FillRectangle(rect, prop.BrushM);
+                        _d2dContext.FillRectangle(rect, displayLayer.barBrushM);
                     }
+                }
 
-                    // Dispose brushes immediately after use to prevent mem leak.
-                    if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-                    {
-                        prop.BrushM.Dispose();
-                    }
-                    displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, null, prop.BrushL, prop.BrushPM, prop.BrushPL);
-
-                    // Dispose the second brush if needed
-                    if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-                    {
-                        if (!IsUnsafeBrush(prop.BrushL))
-                        {
-                            prop.BrushL.Dispose();
-                            displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, null, prop.BrushPM, prop.BrushPL);
-                        }
-                    }
-
+                displayLayer.barBrushM.Dispose();
+                if (disposeLeft)
+                {
+                    displayLayer.barBrushL.Dispose();
                 }
             }
 
             // Render the peak bars if needed
             if (Visualizer.InstanceOptions._showPeaks)
             {
+                if (IsUnsafeBrush(displayLayer.peakBrushM))
+                {
+                    return;
+                }
+                bool disposeLeft = false;
                 for (int i = 0; i < displayLayer.Bars.Length; i++)
                 {
                     var rect = displayLayer.PeaksR[i];
                     var prop = displayLayer.BarProperties[i];
-                    if (IsUnsafeBrush(prop.BrushPM)) return;
+                    var valM = MainWindow._peaks.Length > i ? MainWindow._peaks[i] : 0;
+                    SetBrushTransform(true, peakBrushType, displayLayer.peakBrushM, rect, fh, fw, (float)valM);
 
                     // Same path as above, here we handle circle peaks
                     if (rotateBars)
@@ -297,14 +413,20 @@ namespace FreqFreak
                         var originalTransform = _d2dContext.Transform;
                         var rotMatrix = Matrix3x2.CreateRotation((float)rotation, pivot);
                         _d2dContext.Transform = rotMatrix * originalTransform;
-                        _d2dContext.FillRectangle(rect, prop.BrushPM);
+                        _d2dContext.FillRectangle(rect, displayLayer.peakBrushM);
                         _d2dContext.Transform = originalTransform;
 
                         if (stereo)
                         {
-                            if (IsUnsafeBrush(prop.BrushPL)) return;
+                            if (IsUnsafeBrush(displayLayer.peakBrushL))
+                            {
+                                return;
+                            }
 
                             var rectL = displayLayer.PeaksL[i];
+                            var valL = MainWindow._peaks.Length > i ? MainWindow._peaksRight[i] : 0;
+                            SetBrushTransform(true, peakBrushType, displayLayer.peakBrushL, rectL, fh, fw, (float)valL);
+
                             var originalTransformL = _d2dContext.Transform;
 
                             float pivotXL = rectL.X + rectL.Width * 0.5f;
@@ -320,42 +442,44 @@ namespace FreqFreak
 
                             var rotMatrixL = Matrix3x2.CreateRotation((float)rotationL, pivotL);
                             _d2dContext.Transform = rotMatrixL * originalTransformL;
-                            _d2dContext.FillRectangle(rectL, prop.BrushPL);
+                            _d2dContext.FillRectangle(rectL, displayLayer.peakBrushL);
                             _d2dContext.Transform = originalTransformL;
+                            disposeLeft = true;
                         }
-
-
                     }
                     else // Otherwise we just place them down
                     {
-                        _d2dContext.FillRectangle(rect, prop.BrushPM);
-
-                        if (IsUnsafeBrush(prop.BrushPL)) continue;
-
+                        _d2dContext.FillRectangle(rect, displayLayer.peakBrushM);
                         if (displayLayer.PeaksL[i] != null)
                         {
                             var rectL = displayLayer.PeaksL[i];
-                            _d2dContext.FillRectangle(rectL, prop.BrushPL);
+
+                            if (IsUnsafeBrush(displayLayer.peakBrushL))
+                            {
+                                return;
+                            }
+                            disposeLeft = true;
+                            SetBrushTransform(true, peakBrushType, displayLayer.peakBrushL, rectL, fh, fw, (float)valM);
+
+                            _d2dContext.FillRectangle(rectL, displayLayer.peakBrushL);
                         }
                     }
+                }
 
-                    // Dispose brushes immediately after use to prevent mem leak.
-                    prop.BrushPM.Dispose();
-                    displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, null, prop.BrushPL);
-
-                    // Dispose the second brush if needed
-                    if (!IsUnsafeBrush(prop.BrushPL))
-                    {
-                        prop.BrushPL.Dispose();
-                        displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, prop.BrushPM, null);
-                    }
+                displayLayer.peakBrushM.Dispose();
+                if (disposeLeft)
+                {
+                    displayLayer.peakBrushL.Dispose();
                 }
             }
 
             // Draw the vis lines if needed
             if (lines && !onlyPeaks)
             {
-                if (IsUnsafeBrush(displayLayer.lineBrushes[0])) return;
+                if (IsUnsafeBrush(displayLayer.lineBrushM))
+                {
+                    return;
+                }
 
                 var points = displayLayer.rightPoints;
                 // We have points to draw
@@ -378,7 +502,7 @@ namespace FreqFreak
                         }
                         points.AddRange(pointsL);
                         var geomL = BuildCatmullRomGeometry(points, connectLines);
-                        _d2dContext.DrawGeometry(geomL, displayLayer.lineBrushes[0], thickness);
+                        _d2dContext.DrawGeometry(geomL, displayLayer.lineBrushM, thickness);
                         geomL.Dispose();
                     }
                     else // Otherwise just draw
@@ -388,19 +512,25 @@ namespace FreqFreak
                         l.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap);
                         points.Add(l);
                         var geom = BuildCatmullRomGeometry(points, connectLines);
-                        if (geom == null) return;
+                        if (geom == null)
+                        {
+                            return;
+                        }
 
-                        _d2dContext.DrawGeometry(geom, displayLayer.lineBrushes[0], thickness);
+                        _d2dContext.DrawGeometry(geom, displayLayer.lineBrushM, thickness);
                         geom.Dispose();
                     }
                 }
-                displayLayer.lineBrushes[0].Dispose();
+                displayLayer.lineBrushM.Dispose();
             }
 
             // Draw the peak lines if needed
             if (peaksLine)
             {
-                if (IsUnsafeBrush(displayLayer.lineBrushes[1])) return;
+                if (IsUnsafeBrush(displayLayer.lineBrushL))
+                {
+                    return;
+                }
 
                 var points = displayLayer.PeaksR.Select(x => new Vector2(x.Left, x.Top)).ToList();
                 var pointsL = displayLayer.PeaksL.Select(x => new Vector2(x.Left, x.Top)).ToList();
@@ -422,7 +552,7 @@ namespace FreqFreak
                         }
                         points.AddRange(pointsL);
                         var geomL = BuildCatmullRomGeometry(points, connectLines);
-                        _d2dContext.DrawGeometry(geomL, displayLayer.lineBrushes[1], thickness);
+                        _d2dContext.DrawGeometry(geomL, displayLayer.lineBrushL, thickness);
                         geomL.Dispose();
                     }
                     else
@@ -432,18 +562,16 @@ namespace FreqFreak
                         l.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap);
                         points.Add(l);
                         var geom = BuildCatmullRomGeometry(points, connectLines);
-                        if (geom == null) return;
+                        if (geom == null)
+                        {
+                            return;
+                        }
 
-                        _d2dContext.DrawGeometry(geom, displayLayer.lineBrushes[1], thickness);
+                        _d2dContext.DrawGeometry(geom, displayLayer.lineBrushL, thickness);
                         geom.Dispose();
                     }
                 }
-                displayLayer.lineBrushes[1].Dispose();
-            }
-
-            if (!IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-            {
-                displayLayer.VerticalBrushs[0].Dispose();
+                displayLayer.lineBrushL.Dispose();
             }
 
             // Finish drawing
@@ -605,35 +733,36 @@ namespace FreqFreak
                 return null;
             }
 
-            var Layer = new Layer(
-                new Vortice.Mathematics.Rect[barLen],
-                new Vortice.Mathematics.Rect[barLen],
-                new Vortice.Mathematics.Rect[barLen],
-                new Vortice.Mathematics.Rect[barLen],
-                new(),
-                new(),
-                new (double, double, double, ID2D1Brush, ID2D1Brush, ID2D1Brush, ID2D1Brush)[barLen],
-                new ID2D1Brush[2],
-                localMax,
-                new ID2D1LinearGradientBrush[1]);
+            var Layer = new Layer(barLen, localMax);
 
             if (Visualizer.InstanceOptions._showLines)
             {
                 var lineBrush = CreateBrushForLinesLayer(false, actualWidth, (float)localMax, 0, actualHeight);
-                Layer.lineBrushes[0] = lineBrush;
+                Layer.lineBrushM = lineBrush;
+            }
+            else
+            {
+
             }
 
             if (Visualizer.InstanceOptions._showPeaksLine)
             {
                 var lineBrush = CreateBrushForLinesLayer(true, actualWidth, (float)localMax, 0, actualHeight);
-                Layer.lineBrushes[1] = lineBrush;
+                Layer.lineBrushL = lineBrush;
             }
 
-            if (Visualizer.InstanceOptions._barColorType == ColorMode.GradientVertical ||
-                Visualizer.InstanceOptions._barColorType == ColorMode.DualColorVertical)
+            if (Visualizer.InstanceOptions._showBars && stereo && 
+                (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.OuterCircle || Visualizer.InstanceOptions._visualizationMode == VisualizationMode.InnerCircle))
             {
-                Layer.VerticalBrushs[0] = (ID2D1LinearGradientBrush)CreateBrushForLayer(false, 0, barLen, actualWidth, (float)height, 0, localMax);
+                Layer.barBrushM = CreateBrushForLayer(false, 0, barLen, actualWidth, (float)height, 0, localMax);
+                Layer.barBrushL = CreateBrushForLayer(false, 0, barLen, actualWidth, (float)height, 0, localMax);
             }
+            else if (Visualizer.InstanceOptions._showBars)
+            {
+                Layer.barBrushM = CreateBrushForLayer(false, 0, barLen, actualWidth, (float)height, 0, localMax);
+            }
+
+           
 
             // Update each bar 
             List<Point> linePoints = new List<Point>();
@@ -642,8 +771,8 @@ namespace FreqFreak
             {
                 var newRect = new Vortice.Mathematics.Rect(0, 0, barWidth, 0);
                 var newRectLeft = new Vortice.Mathematics.Rect(-1, -1, barWidth, 0);
-                (double BarL, double BarR, double BarM, ID2D1Brush BrushM, ID2D1Brush BrushL, ID2D1Brush BrushPM, ID2D1Brush BrushPL) newBarProperties = (0.0, 0.0, 0.0, null, null, null, null);
-                var lastRect = _previousLayer != null && _previousLayer.BarProperties.Length > i ? _previousLayer.BarProperties[i] : (0.0, 0.0, 0.0, null, null, null, null);
+                (double BarL, double BarR, double BarM) newBarProperties = (0.0, 0.0, 0.0);
+                (double BarL, double BarR, double BarM) lastRect = _previousLayer != null && _previousLayer.BarProperties.Length > i ? _previousLayer.BarProperties[i] : (0.0, 0.0, 0.0);
 
                 double current = 0.0;
                 double currentLeft = 0.0;
@@ -703,11 +832,6 @@ namespace FreqFreak
                         newRect.Left = (i * (opts._barWidth + opts._barGap));
                         newRect.Top = (float)height - newRect.Height;
                         if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = current;
-                        if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                            Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
-                        {
-                            newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, newRect.Height, newRect.Top, localMax);
-                        }
                         break;
 
                     case VisualizationMode.Center:
@@ -739,11 +863,6 @@ namespace FreqFreak
 
                             if (MainWindow._peaks[i] < currentRight) MainWindow._peaks[i] = currentRight;
                             if (MainWindow._peaksRight[i] < currentLeft) MainWindow._peaksRight[i] = currentLeft;
-                            if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
-                            {
-                                newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, newRect.Height, newRect.Top, localMax);
-                            }
                         }
                         else
                         {
@@ -763,11 +882,6 @@ namespace FreqFreak
                             newRect.Top = (float)(canvasHalfHeight - (current * 0.5f));
 
                             if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = current;
-                            if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
-                            {
-                                newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, newRect.Height, newRect.Top, localMax);
-                            }
                         }
                         break;
 
@@ -787,11 +901,6 @@ namespace FreqFreak
                         newRect.Top = 0;
 
                         if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = current;
-                        if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                            Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
-                        {
-                            newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, newRect.Height, newRect.Top, localMax);
-                        }
                         break;
 
                     case VisualizationMode.OuterCircle:
@@ -850,12 +959,6 @@ namespace FreqFreak
                                 if (MainWindow._peaksRight[i] < currentRight) MainWindow._peaksRight[i] = currentRight;
                             }
 
-                            if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
-                            {
-                                newBarProperties.BrushL = CreateBrushForLayer(false, i, barLen, actualWidth, (float)currentLeft, newRect.Top, localMax);
-                                newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, (float)currentRight, newRect.Top, localMax);
-                            }
 
                         }
                         else  // Mono circular
@@ -891,12 +994,6 @@ namespace FreqFreak
                                 newRect.Top = (float)(y - current);
                             }
 
-                            if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = current;
-                            if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
-                            {
-                                newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, (float)current, newRect.Top, localMax);
-                            }
                         }
                         break;
                 }
@@ -941,6 +1038,24 @@ namespace FreqFreak
                 return null;
             }
 
+            int barLen = layer.BarsL.Length;
+
+            if (Visualizer.InstanceOptions._showPeaks && stereo &&
+               (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.OuterCircle || Visualizer.InstanceOptions._visualizationMode == VisualizationMode.InnerCircle))
+            {
+                layer.peakBrushM = CreateBrushForPeaksLayer(0, barLen, actualWidth, contentHeight, 0, layer.max);
+                layer.peakBrushL = CreateBrushForPeaksLayer(0, barLen, actualWidth, contentHeight, 0, layer.max);
+            }
+            else if (Visualizer.InstanceOptions._showPeaks && Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Center)
+            {
+                layer.peakBrushM = CreateBrushForPeaksLayer(0, barLen, actualWidth, contentHeight, 0, layer.max);
+                layer.peakBrushL = CreateBrushForPeaksLayer(0, barLen, actualWidth, contentHeight, 0, layer.max);
+            }
+            else if (Visualizer.InstanceOptions._showPeaks)
+            {
+                layer.peakBrushM = CreateBrushForPeaksLayer(0, barLen, actualWidth, contentHeight, 0, layer.max);
+            }
+
             switch (pos)
             {
                 // Bottom / Top
@@ -961,10 +1076,6 @@ namespace FreqFreak
 
                         layer.PeaksR[i] = newRect;
 
-                        if (!Visualizer.InstanceOptions._showPeaksLine) 
-                        { 
-                            layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArr[i], 0, layer.max);
-                        }
                     }
                     break;
 
@@ -1023,11 +1134,6 @@ namespace FreqFreak
                             layer.PeaksL[i] = newRectL;
                             layer.PeaksR[i] = newRectR;
 
-                            if (!Visualizer.InstanceOptions._showPeaksLine)
-                            {
-                                layer.BarProperties[i].BrushPL = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArrL[i], 0, layer.max); ;
-                                layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArr[i], 0, layer.max);
-                            }
                         }
                     }
                     else // mono circle
@@ -1054,10 +1160,6 @@ namespace FreqFreak
                             newRect.Top = outer ? (float)yTip : (float)(yTip - 4.0);
 
                             layer.PeaksR[i] = newRect;
-                            if (!Visualizer.InstanceOptions._showPeaksLine)
-                            {
-                                layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArr[i], 0, layer.max);
-                            }
                         }
                     }
                     break;
@@ -1079,24 +1181,12 @@ namespace FreqFreak
                             newRectL.Top = (float)(halfCanvas - (barArrL[i] * 0.5));
                             newRect.Top = (float)(halfCanvas + (barArr[i] * 0.5) - 2.0);
 
-                            if (!Visualizer.InstanceOptions._showPeaksLine)
-                            {
-                                layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)(barArr[i] - halfCanvas), 0, layer.max); ;
-                                layer.BarProperties[i].BrushPL = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)(halfCanvas - barArrL[i]), 0, layer.max);
-                            }
                         }
                         else
                         {
                             double peak = barArr[i] * 0.5;
                             newRectL.Top = (float)(halfCanvas - peak);
                             newRect.Top = (float)(halfCanvas + peak - 2.0);
-
-                            if (!Visualizer.InstanceOptions._showPeaksLine)
-                            {
-                                var brush = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)(barArr[i]), 0, layer.max);
-                                layer.BarProperties[i].BrushPM = brush;
-                                layer.BarProperties[i].BrushPL = brush;
-                            }
 
                         }
 
@@ -1134,14 +1224,6 @@ namespace FreqFreak
             _targetBitmap = null;
             if (_layerQueue.Count > 0)
             {
-                foreach (var layer in _layerQueue)
-                {
-                    foreach (var prop in layer.BarProperties)
-                    {
-                        prop.BrushM?.Dispose();
-                        prop.BrushL?.Dispose();
-                    }
-                }
                 _layerQueue.Clear();
             }
             _d2dContext?.Dispose();
@@ -1295,30 +1377,110 @@ namespace FreqFreak
                 case ColorMode.SolidColor:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(clr1));
                 case ColorMode.DualColorVertical:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(Visualizer.GetGradientColor(
-                            new[] { clr1, clr2 },
-                            (double)height / ActualHeight)));
+                    {
+                        var stopsH = new Vortice.Direct2D1.GradientStop[]
+                        {
+                            new Vortice.Direct2D1.GradientStop(0, ToColor4(clr1)),
+                            new Vortice.Direct2D1.GradientStop(1, ToColor4(clr2))
+                        };
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsH))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(0, 1)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
+                    }
                 case ColorMode.DualColorHorizontal:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(Visualizer.GetGradientColor(
-                            new[] { clr1, clr2 },
-                            (double)index / total)));
+                    {
+                        var stopsH = new Vortice.Direct2D1.GradientStop[]
+                        {
+                            new Vortice.Direct2D1.GradientStop(0, ToColor4(clr1)),
+                            new Vortice.Direct2D1.GradientStop(1, ToColor4(clr2))
+                        };
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsH))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(1, 0)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
+                    }
                 case ColorMode.DualColorHeight:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(Visualizer.GetGradientColor(
-                            new[] { clr1, clr2 },
-                            (double)height / max)));
+                    {
+                        var stopsH = new Vortice.Direct2D1.GradientStop[]
+                        {
+                            new Vortice.Direct2D1.GradientStop(0, ToColor4(clr1)),
+                            new Vortice.Direct2D1.GradientStop(1, ToColor4(clr2))
+                        };
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsH))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(1, 0)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
+                    }
                 case ColorMode.GradientVertical:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(Visualizer.GetGradientColor(
-                            grdClrs,
-                            (double)height / ActualHeight)));
+                    { 
+                        var stopsGV = new List<Vortice.Direct2D1.GradientStop>();
+                        for (int i = 0; i < grdClrs.Length; i++)
+                        {
+                            float pos = (float)i / (grdClrs.Length - 1);
+                            stopsGV.Add(new Vortice.Direct2D1.GradientStop(pos, ToColor4(grdClrs[i])));
+                        }
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsGV.ToArray()))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(0, 1)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
+                    }
                 case ColorMode.GradientHorizontal:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(Visualizer.GetGradientColor(
-                            grdClrs,
-                            (double)index / total)));
+                    {
+                        var stopsGV = new List<Vortice.Direct2D1.GradientStop>();
+                        for (int i = 0; i < grdClrs.Length; i++)
+                        {
+                            float pos = (float)i / (grdClrs.Length - 1);
+                            stopsGV.Add(new Vortice.Direct2D1.GradientStop(pos, ToColor4(grdClrs[i])));
+                        }
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsGV.ToArray()))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(1, 0)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
+                    }
                 case ColorMode.GradientHeight:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(Visualizer.GetGradientColor(
-                           grdClrs,
-                           (double)height / max)));
-                    break;
+                    {
+                        var stopsGV = new List<Vortice.Direct2D1.GradientStop>();
+                        for (int i = 0; i < grdClrs.Length; i++)
+                        {
+                            float pos = (float)i / (grdClrs.Length - 1);
+                            stopsGV.Add(new Vortice.Direct2D1.GradientStop(pos, ToColor4(grdClrs[i])));
+                        }
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsGV.ToArray()))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(1, 0)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
+                    }
                 case ColorMode.GradientPitch:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         PitchDetector.GetPitchColor(MainWindow.PitchFreq, grdClrs)));
@@ -1376,14 +1538,38 @@ namespace FreqFreak
                     }
                 case ColorMode.DualColorHorizontal:
                     {
-                        double t = (double)index / Math.Max(1, total - 1);
-                        var color = Visualizer.GetGradientColor(new[] { clr1, clr2 }, t);
-                        return _d2dContext.CreateSolidColorBrush(ToColor4(color));
+                        var stopsH = new Vortice.Direct2D1.GradientStop[]
+                        {
+                            new Vortice.Direct2D1.GradientStop(0, ToColor4(clr1)),
+                            new Vortice.Direct2D1.GradientStop(1, ToColor4(clr2))
+                        };
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsH))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(1, 0)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
                     }
                 case ColorMode.DualColorHeight:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(Visualizer.GetGradientColor(
-                            new[] { clr1, clr2 },
-                            (double)height / max)));
+                    {
+                        var stopsH = new Vortice.Direct2D1.GradientStop[]
+                        {
+                            new Vortice.Direct2D1.GradientStop(0, ToColor4(clr1)),
+                            new Vortice.Direct2D1.GradientStop(1, ToColor4(clr2))
+                        };
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsH))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(1, 0)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
+                    }
                 case ColorMode.GradientVertical:
                     var stopsGV = new List<Vortice.Direct2D1.GradientStop>();
                     for (int i = 0; i < grdClrs.Length; i++)
@@ -1402,14 +1588,40 @@ namespace FreqFreak
                     }
                 case ColorMode.GradientHorizontal:
                     {
-                        double t = (double)index / Math.Max(1, total - 1);
-                        var color = Visualizer.GetGradientColor(grdClrs, t);
-                        return _d2dContext.CreateSolidColorBrush(ToColor4(color));
+                        var stopsGH = new List<Vortice.Direct2D1.GradientStop>();
+                        for (int i = 0; i < grdClrs.Length; i++)
+                        {
+                            float pos = (float)i / (grdClrs.Length - 1);
+                            stopsGH.Add(new Vortice.Direct2D1.GradientStop(pos, ToColor4(grdClrs[i])));
+                        }
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsGH.ToArray()))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(1, 0)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
                     }
                 case ColorMode.GradientHeight:
-                    return _d2dContext.CreateSolidColorBrush(ToColor4(Visualizer.GetGradientColor(
-                           grdClrs,
-                           (double)height / max)));
+                    {
+                        var stopsGH = new List<Vortice.Direct2D1.GradientStop>();
+                        for (int i = 0; i < grdClrs.Length; i++)
+                        {
+                            float pos = (float)i / (grdClrs.Length - 1);
+                            stopsGH.Add(new Vortice.Direct2D1.GradientStop(pos, ToColor4(grdClrs[i])));
+                        }
+                        using (var stopCollection = _d2dContext.CreateGradientStopCollection(stopsGH.ToArray()))
+                        {
+                            var props = new LinearGradientBrushProperties
+                            {
+                                StartPoint = new System.Numerics.Vector2(0, 0),
+                                EndPoint = new System.Numerics.Vector2(1, 0)
+                            };
+                            return _d2dContext.CreateLinearGradientBrush(props, stopCollection);
+                        }
+                    }
                 case ColorMode.GradientPitch:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         PitchDetector.GetPitchColor(MainWindow.PitchFreq, grdClrs)));

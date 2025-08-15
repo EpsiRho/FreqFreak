@@ -1123,11 +1123,7 @@ namespace FreqFreak
                     {
                         return;
                     }
-                    Task.Run(() =>
-                    {
-                        VisCanvas.UpdatePlane(frame, frameR);
-
-                    });
+                    VisCanvas.UpdatePlane(frame, frameR);
                 }
 
                 CenterLine.Fill = new SolidColorBrush(_color3);
