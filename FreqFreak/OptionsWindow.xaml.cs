@@ -442,7 +442,15 @@ namespace FreqFreak
                 AudioChannelInput.SelectedIndex = 3;
             }
 
-            string peakMode = (string)((ComboBoxItem)PeaksModeInput.SelectedItem).Content;
+            string peakMode = "Off";
+            try
+            {
+                peakMode = (string)((ComboBoxItem)PeaksModeInput.SelectedItem).Content;
+            }
+            catch (Exception)
+            {
+
+            }
 
             if (peakMode == "Peak Bars")
             {

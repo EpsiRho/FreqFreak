@@ -231,7 +231,7 @@ namespace FreqFreak
             if (Visualizer.AudioDevicesWindow != null)
             {
                 // If it's already open bring it to the front
-                Visualizer.AudioDevicesWindow._audioDispatcher.Invoke(() => {
+                Visualizer.AudioDevicesWindow.Dispatcher.Invoke(() => {
                     Visualizer.AudioDevicesWindow.Activate();
                     Visualizer.AudioDevicesWindow.Focus();
                 });
@@ -256,7 +256,7 @@ namespace FreqFreak
                 Visualizer.AudioDevicesWindow = new AudioDevices();
                 Visualizer.AudioDevicesWindow.Owner = null;
                 Visualizer.AudioDevicesWindow._audioDispatcher = Visualizer.AudioDevicesWindow.Dispatcher;
-                Visualizer.AudioDevicesWindow._audioDispatcher.Invoke(() =>
+                Visualizer.AudioDevicesWindow.Dispatcher.Invoke(() =>
                 {
                     Visualizer.AudioDevicesWindow.Left = left;
                     Visualizer.AudioDevicesWindow.Top = top;

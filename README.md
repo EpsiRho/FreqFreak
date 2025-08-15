@@ -7,7 +7,7 @@ FreqFreak is a highly customizable audio visualizer for windows built on WPF. Al
 ## Downloads/Building
 **Warning! To use per process audio (and because I don't have a PC to test with, potentially using this application at all) you must be on Windows 10 Build 20348 (aka Windows Server 2022) or higher. This came out in Late 2021, so if you've updated since then you should be fine.**
 
-FreqFreak can be obtained from the [Microsoft Store](storeLink)! There, FreqFreak is priced at $1.99. I like to call this the "Convenience Fee", since it becomes easier to download and install, and comes with updates. Feel free to continue to download FreqFreak from the [Releases](https://github.com/EpsiRho/FreqFreak/releases) section of this GitHub as well. From GitHub, **Just unzip the release and run FreqFreak.exe**
+FreqFreak can be obtained from the [Microsoft Store](https://apps.microsoft.com/detail/9n44td8gbw16)! There, FreqFreak is priced at $1.99. I like to call this the "Convenience Fee", since it becomes easier to download and install, and comes with updates. Feel free to continue to download FreqFreak from the [Releases](https://github.com/EpsiRho/FreqFreak/releases) section of this GitHub as well. From GitHub, **Just unzip the release and run FreqFreak.exe**
 
 Building the project requires [JustArion's Process Audio Capture branch for NAudio](https://github.com/JustArion/NAudio/tree/process-audio-capture), as per-process audio capture support has not been merged into NAudio yet.
 

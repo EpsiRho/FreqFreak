@@ -117,7 +117,7 @@ namespace FreqFreak
                 });
                 _captureThread.Start();
 
-                _audioDispatcher.BeginInvoke(() =>
+                Dispatcher.BeginInvoke(() =>
                 {
                     CurrentDeviceText.Text = Visualizer._audioDevice == null ? "Error Setting Device" : $"Current: {Visualizer._audioDevice.FriendlyName}";
                 });
@@ -145,7 +145,7 @@ namespace FreqFreak
                 });
                 _captureThread.Start();
 
-                _audioDispatcher.BeginInvoke(() =>
+                Dispatcher.BeginInvoke(() =>
                 {
                     CurrentDeviceText.Text = Visualizer._audioDevice == null ? "Error Setting Device!" : $"Current: {Visualizer._audioDevice.FriendlyName}";
                 });
@@ -174,7 +174,12 @@ namespace FreqFreak
                 });
                 _captureThread.Start();
 
-                _audioDispatcher.BeginInvoke(() =>
+                if(_audioDispatcher == null)
+                {
+                    return;
+                }
+
+                Dispatcher.BeginInvoke(() =>
                 {
                     CurrentDeviceText.Text = Visualizer.SelectedApp == null ? "Error Setting Device!" : $"Current: {Visualizer.SelectedApp}";
                 });
