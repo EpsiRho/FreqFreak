@@ -125,14 +125,15 @@ namespace FreqFreak
             _d2dContext.Transform = m;
 
             // Show current layer or if there is none, show the last layer
-            Layer displayLayer;
-            if (_layerQueue.Count() == 0)
+            Layer displayLayer = null;
+            _layerQueue.TryDequeue(out displayLayer);
+            if (displayLayer == null)
             {
                 displayLayer = _previousLayer;
             }
             else
             {
-                _layerQueue.TryDequeue(out displayLayer);
+                //_layerQueue.TryDequeue(out displayLayer);
                 _previousLayer = displayLayer;
             }
 
@@ -183,8 +184,9 @@ namespace FreqFreak
                         prop.BrushM.Transform = transform;
                     }
                     if (IsUnsafeBrush(prop.BrushM))
-                    { 
-                        return; 
+                    {
+                        _d2dContext.EndDraw();
+                        return;
                     }
 
                     // If we want to show circles:
@@ -219,7 +221,11 @@ namespace FreqFreak
                             {
                                 prop.BrushL = displayLayer.VerticalBrushs[0];
                             }
-                            if (IsUnsafeBrush(prop.BrushL)) return;
+                            if (IsUnsafeBrush(prop.BrushL))
+                            {
+                                _d2dContext.EndDraw();
+                                return;
+                            };
 
                             var rectL = displayLayer.BarsL[i];
                             var originalTransformL = _d2dContext.Transform;
@@ -272,7 +278,11 @@ namespace FreqFreak
                 {
                     var rect = displayLayer.PeaksR[i];
                     var prop = displayLayer.BarProperties[i];
-                    if (IsUnsafeBrush(prop.BrushPM)) return;
+                    if (IsUnsafeBrush(prop.BrushPM))
+                    {
+                        _d2dContext.EndDraw();
+                        return;
+                    };
 
                     // Same path as above, here we handle circle peaks
                     if (rotateBars)
@@ -302,7 +312,11 @@ namespace FreqFreak
 
                         if (stereo)
                         {
-                            if (IsUnsafeBrush(prop.BrushPL)) return;
+                            if (IsUnsafeBrush(prop.BrushPL))
+                            {
+                                _d2dContext.EndDraw();
+                                return;
+                            };
 
                             var rectL = displayLayer.PeaksL[i];
                             var originalTransformL = _d2dContext.Transform;
@@ -330,9 +344,13 @@ namespace FreqFreak
                     {
                         _d2dContext.FillRectangle(rect, prop.BrushPM);
 
-                        if (IsUnsafeBrush(prop.BrushPL)) continue;
+                        if (IsUnsafeBrush(prop.BrushPL))
+                        {
+                            _d2dContext.EndDraw();
+                            return;
+                        };
 
-                        if (displayLayer.PeaksL[i] != null)
+                        if (displayLayer.PeaksL[i].Height != 0)
                         {
                             var rectL = displayLayer.PeaksL[i];
                             _d2dContext.FillRectangle(rectL, prop.BrushPL);
@@ -356,7 +374,11 @@ namespace FreqFreak
             if (lines && !onlyPeaks)
             {
                 var linebrush = displayLayer.lineBrushes[0];
-                if (IsUnsafeBrush(linebrush)) return;
+                if (IsUnsafeBrush(linebrush))
+                {
+                    _d2dContext.EndDraw();
+                    return;
+                };
 
                 var points = displayLayer.rightPoints;
                 // We have points to draw
@@ -380,6 +402,7 @@ namespace FreqFreak
                         points.AddRange(pointsL);
                         var geomL = BuildCatmullRomGeometry(points, connectLines);
                         _d2dContext.DrawGeometry(geomL, linebrush, thickness);
+                        geomL.Dispose();
                     }
                     else // Otherwise just draw
                     {
@@ -388,9 +411,14 @@ namespace FreqFreak
                         l.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap);
                         points.Add(l);
                         var geom = BuildCatmullRomGeometry(points, connectLines);
-                        if (geom == null) return;
+                        if (geom == null)
+                        {
+                            _d2dContext.EndDraw();
+                            return;
+                        };
 
                         _d2dContext.DrawGeometry(geom, linebrush, thickness);
+                        geom.Dispose();
                     }
                     displayLayer.lineBrushes[0].Dispose();
                 }
@@ -400,7 +428,11 @@ namespace FreqFreak
             if (peaksLine)
             {
                 var linebrush = displayLayer.lineBrushes[1];
-                if (IsUnsafeBrush(linebrush)) return;
+                if (IsUnsafeBrush(linebrush))
+                {
+                    _d2dContext.EndDraw();
+                    return;
+                };
 
                 var points = displayLayer.PeaksR.Select(x => new Vector2(x.Left, x.Top)).ToList();
                 var pointsL = displayLayer.PeaksL.Select(x => new Vector2(x.Left, x.Top)).ToList();
@@ -423,6 +455,7 @@ namespace FreqFreak
                         points.AddRange(pointsL);
                         var geomL = BuildCatmullRomGeometry(points, connectLines);
                         _d2dContext.DrawGeometry(geomL, linebrush, thickness);
+                        geomL.Dispose();
                     }
                     else
                     {
@@ -431,9 +464,14 @@ namespace FreqFreak
                         l.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap);
                         points.Add(l);
                         var geom = BuildCatmullRomGeometry(points, connectLines);
-                        if (geom == null) return;
+                        if (geom == null)
+                        {
+                            _d2dContext.EndDraw();
+                            return;
+                        }
 
                         _d2dContext.DrawGeometry(geom, linebrush, thickness);
+                        geom.Dispose();
                     }
                     displayLayer.lineBrushes[1].Dispose();
                 }
@@ -445,7 +483,7 @@ namespace FreqFreak
             }
 
             // Finish drawing
-            var res = _d2dContext.EndDraw();
+            _d2dContext.EndDraw();
         }
 
         private ID2D1PathGeometry BuildCatmullRomGeometry(List<Vector2> pts, bool open)
@@ -589,7 +627,7 @@ namespace FreqFreak
 
                 if (stereo)
                 {
-                    if (frameRight.Length < i)
+                    if (frameRight.Length <= i)
                     {
                         break;
                     }

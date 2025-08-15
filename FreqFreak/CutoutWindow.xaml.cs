@@ -28,7 +28,7 @@ namespace FreqFreak
         public double Rotation = 0;
         public bool DraggableCache = true;
         public Guid WindowID = Guid.NewGuid();
-        public IntPtr _hwnd = -1;
+        public IntPtr _hwnd = IntPtr.Zero;
         public BitmapImage CutoutImage;
         public NormalDragHandler dragHandler;
         public CutoutWindow(BitmapImage img)
@@ -79,6 +79,27 @@ namespace FreqFreak
             (left, top) = Visualizer.MainWin.GetWindowPosition(this, Dispatcher, 400, 400);
             Left = left;
             Top = top;
+            this.KeyDown += MainWindow_KeyDown;
+
+        }
+        private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Up)
+            {
+                this.Top--;
+            }
+            else if (e.Key == System.Windows.Input.Key.Down)
+            {
+                this.Top++;
+            }
+            else if (e.Key == System.Windows.Input.Key.Left)
+            {
+                this.Left--;
+            }
+            else if (e.Key == System.Windows.Input.Key.Right)
+            {
+                this.Left++;
+            }
         }
         public void UpdateSettings(double x, double y, double w, double h, double bScale, double r, bool t, bool d)
         {
@@ -121,14 +142,21 @@ namespace FreqFreak
                 //var normalized = BassAmplitude / Visualizer.InstanceOptions._height;
                 var scale = 1 + (MainWindow.BassAmplitude * (BassScale - 1));
 
-                Dispatcher.Invoke(() =>
+                try
                 {
-                    Width = newWidth * BassScale;
-                    Height = newHeight * BassScale;
-                    MainGridRotation.Angle = angleDegrees;
-                    MainGridScale.ScaleX = scale;
-                    MainGridScale.ScaleY = scale;
-                });
+                    Dispatcher.InvokeAsync(() =>
+                    {
+                        Width = newWidth * BassScale;
+                        Height = newHeight * BassScale;
+                        MainGridRotation.Angle = angleDegrees;
+                        MainGridScale.ScaleX = scale;
+                        MainGridScale.ScaleY = scale;
+                    });
+                }
+                catch (Exception)
+                {
+
+                }
             }
         }
     }
