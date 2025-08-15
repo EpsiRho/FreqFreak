@@ -3,7 +3,6 @@ using System.Numerics;
 using System.Windows;
 using Vortice;
 using Vortice.Direct2D1;
-using Vortice.Direct2D1.Effects;
 using Vortice.DXGI;
 using Vortice.Mathematics;
 using Vortice.Wpf;
@@ -12,14 +11,13 @@ namespace FreqFreak
 {
     public class FrequencyVorticeControl : DrawingSurface
     {
-        private sealed record Layer(Vortice.Mathematics.Rect[] Bars, Vortice.Mathematics.Rect[] BarsL, 
+        private sealed record Layer(Vortice.Mathematics.Rect[] Bars, Vortice.Mathematics.Rect[] BarsL,
                                     Vortice.Mathematics.Rect[] PeaksL, Vortice.Mathematics.Rect[] PeaksR,
-                                    List<Vector2> leftPoints, List<Vector2> rightPoints, 
-                                    (double BarL, double BarR, double BarM, ID2D1Brush BrushM, ID2D1Brush BrushL, ID2D1Brush BrushPM, ID2D1Brush BrushPL)[] BarProperties, 
+                                    List<Vector2> leftPoints, List<Vector2> rightPoints,
+                                    (double BarL, double BarR, double BarM, ID2D1Brush BrushM, ID2D1Brush BrushL, ID2D1Brush BrushPM, ID2D1Brush BrushPL)[] BarProperties,
                                     ID2D1Brush[] lineBrushes, double max,
                                     ID2D1LinearGradientBrush[] VerticalBrushs);
         private ConcurrentQueue<Layer> _layerQueue = new();
-        private ConcurrentQueue<Layer> _layerDisposeQueue = new();
         private Layer _previousLayer;
 
         private ID2D1Device? _d2dDevice;
@@ -27,7 +25,6 @@ namespace FreqFreak
         private ID2D1Bitmap1? _targetBitmap;
         public System.Windows.Media.Color ClearColor { get; set; } = System.Windows.Media.Color.FromArgb(0, 0, 0, 0);
         private const double PI_OVER_TWO = Math.PI / 2;
-        public CancellationTokenSource _cts = new();
 
         public FrequencyVorticeControl()
         {
@@ -50,22 +47,6 @@ namespace FreqFreak
             // Create the target bitmap tied to the current color texture.
             CreateTargetBitmap();
 
-            Thread t = new Thread(() =>
-            {
-                while (!_cts.Token.IsCancellationRequested)
-                {
-                    if(_layerDisposeQueue.IsEmpty)
-                    {
-                        Thread.Sleep(100);
-                        continue;
-                    }
-            
-                    _layerDisposeQueue.TryDequeue(out Layer? layer);
-                    DisposeLayer(layer);
-                }
-            });
-            t.Start();
-
             // Draw for the first time
             Invalidate();
         }
@@ -87,65 +68,6 @@ namespace FreqFreak
             if (brushFactory.NativePointer != currentFactory.NativePointer) return true;
 
             return false;
-        }
-        private void QueueLayerDispose(Layer? layer)
-        {
-            _layerDisposeQueue.Enqueue(layer);
-            //DisposeLayer(layer);
-        }
-        private async void DisposeLayer(Layer? layer)
-        {
-            if (layer is null) return;
-            // Per-bar brushes in the tuple array
-            var props = layer.BarProperties;
-            for (int i = 0; i < props.Length; i++)
-            {
-                var p = props[i];
-
-                if (!IsUnsafeBrush(p.BrushM))
-                {
-                    p.BrushM.Dispose();
-                }
-
-                if (!IsUnsafeBrush(p.BrushL))
-                {
-                    p.BrushL.Dispose();
-                }
-
-                if (!IsUnsafeBrush(p.BrushPM))
-                {
-                    p.BrushPM.Dispose();
-                }
-
-                if (!IsUnsafeBrush(p.BrushPL))
-                {
-                    p.BrushPL.Dispose();
-                }
-
-                // null the references so the layer is "safe" if it gets reused accidentally
-                p.BrushM = null; p.BrushL = null; p.BrushPM = null; p.BrushPL = null;
-                props[i] = p;
-            }
-
-            // Line brushes
-            if (!IsUnsafeBrush(layer.lineBrushes[0]))
-            {
-                layer.lineBrushes[0].Dispose();
-            }
-            if (!IsUnsafeBrush(layer.lineBrushes[1]))
-            {
-                layer.lineBrushes[1].Dispose();
-            }
-
-            // Vertical gradient brushes
-            if (!IsUnsafeBrush(layer.VerticalBrushs[0]))
-            {
-                layer.VerticalBrushs[0].Dispose();
-            }
-            if (!IsUnsafeBrush(layer.VerticalBrushs[0]))
-            {
-                layer.VerticalBrushs[0].Dispose();
-            }
         }
 
         private void OnDraw(object? sender, DrawEventArgs e)
@@ -171,10 +93,10 @@ namespace FreqFreak
 
             // Begin drawing and clear the target 
             var clearColor = ToColor4(ClearColor);
+            _d2dContext.AntialiasMode = AntialiasMode.Aliased;
             _d2dContext.BeginDraw();
             _d2dContext.Clear(clearColor);
 
-            _d2dContext.AntialiasMode = AntialiasMode.Aliased;
             // Rotate this bitch
             // More accurately:
             // - Find the content's center
@@ -203,24 +125,21 @@ namespace FreqFreak
             _d2dContext.Transform = m;
 
             // Show current layer or if there is none, show the last layer
-            Layer displayLayer = null;
-            _layerQueue.TryDequeue(out displayLayer);
-
-            if (displayLayer == null)
+            Layer displayLayer;
+            if (_layerQueue.Count() == 0)
             {
                 displayLayer = _previousLayer;
             }
             else
             {
-                //_previousLayer = displayLayer;
-                var old = Interlocked.Exchange(ref _previousLayer, displayLayer);
-                QueueLayerDispose(old);
+                _layerQueue.TryDequeue(out displayLayer);
+                _previousLayer = displayLayer;
             }
 
             // If there is no layer there is no draw
             if (displayLayer == null)
             {
-                //_d2dContext.EndDraw();
+                _d2dContext.EndDraw();
                 return;
             }
 
@@ -238,6 +157,9 @@ namespace FreqFreak
             if (currentMode == VisualizationMode.OuterCircle ||
                 currentMode == VisualizationMode.InnerCircle)
             {
+                //var size = _targetBitmap.Size;
+                //centerX = size.Width * 0.5f;
+                //centerY = size.Height * 0.5f;
                 centerX = contentCenter.X;
                 centerY = contentCenter.Y;
                 rotateBars = true;
@@ -262,7 +184,6 @@ namespace FreqFreak
                     }
                     if (IsUnsafeBrush(prop.BrushM))
                     {
-                        //_d2dContext.EndDraw();
                         return;
                     }
 
@@ -298,11 +219,7 @@ namespace FreqFreak
                             {
                                 prop.BrushL = displayLayer.VerticalBrushs[0];
                             }
-                            if (IsUnsafeBrush(prop.BrushL))
-                            {
-                                //_d2dContext.EndDraw();
-                                return;
-                            };
+                            if (IsUnsafeBrush(prop.BrushL)) return;
 
                             var rectL = displayLayer.BarsL[i];
                             var originalTransformL = _d2dContext.Transform;
@@ -329,21 +246,21 @@ namespace FreqFreak
                     }
 
                     // Dispose brushes immediately after use to prevent mem leak.
-                    //if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-                    //{
-                    //    prop.BrushM.Dispose();
-                    //}
-                    //displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, null, prop.BrushL, prop.BrushPM, prop.BrushPL);
+                    if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
+                    {
+                        prop.BrushM.Dispose();
+                    }
+                    displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, null, prop.BrushL, prop.BrushPM, prop.BrushPL);
 
                     // Dispose the second brush if needed
-                    //if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-                    //{
-                    //    if (!IsUnsafeBrush(prop.BrushL))
-                    //    {
-                    //        prop.BrushL.Dispose();
-                    //        displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, null, prop.BrushPM, prop.BrushPL);
-                    //    }
-                    //}
+                    if (IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
+                    {
+                        if (!IsUnsafeBrush(prop.BrushL))
+                        {
+                            prop.BrushL.Dispose();
+                            displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, null, prop.BrushPM, prop.BrushPL);
+                        }
+                    }
 
                 }
             }
@@ -355,11 +272,7 @@ namespace FreqFreak
                 {
                     var rect = displayLayer.PeaksR[i];
                     var prop = displayLayer.BarProperties[i];
-                    if (IsUnsafeBrush(prop.BrushPM))
-                    {
-                        //_d2dContext.EndDraw();
-                        return;
-                    };
+                    if (IsUnsafeBrush(prop.BrushPM)) return;
 
                     // Same path as above, here we handle circle peaks
                     if (rotateBars)
@@ -389,11 +302,7 @@ namespace FreqFreak
 
                         if (stereo)
                         {
-                            if (IsUnsafeBrush(prop.BrushPL))
-                            {
-                                //_d2dContext.EndDraw();
-                                return;
-                            };
+                            if (IsUnsafeBrush(prop.BrushPL)) return;
 
                             var rectL = displayLayer.PeaksL[i];
                             var originalTransformL = _d2dContext.Transform;
@@ -421,13 +330,9 @@ namespace FreqFreak
                     {
                         _d2dContext.FillRectangle(rect, prop.BrushPM);
 
-                        if (IsUnsafeBrush(prop.BrushPL))
-                        {
-                            //_d2dContext.EndDraw();
-                            return;
-                        };
+                        if (IsUnsafeBrush(prop.BrushPL)) continue;
 
-                        if (displayLayer.PeaksL[i].Height != 0)
+                        if (displayLayer.PeaksL[i] != null)
                         {
                             var rectL = displayLayer.PeaksL[i];
                             _d2dContext.FillRectangle(rectL, prop.BrushPL);
@@ -435,34 +340,29 @@ namespace FreqFreak
                     }
 
                     // Dispose brushes immediately after use to prevent mem leak.
-                    //prop.BrushPM.Dispose();
-                    // displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, null, prop.BrushPL);
+                    prop.BrushPM.Dispose();
+                    displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, null, prop.BrushPL);
 
-                    // // Dispose the second brush if needed
-                    // if (!IsUnsafeBrush(prop.BrushPL))
-                    // {
-                    //     prop.BrushPL.Dispose();
-                    //     displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, prop.BrushPM, null);
-                    // }
+                    // Dispose the second brush if needed
+                    if (!IsUnsafeBrush(prop.BrushPL))
+                    {
+                        prop.BrushPL.Dispose();
+                        displayLayer.BarProperties[i] = (prop.BarL, prop.BarR, prop.BarM, prop.BrushM, prop.BrushL, prop.BrushPM, null);
+                    }
                 }
             }
 
             // Draw the vis lines if needed
             if (lines && !onlyPeaks)
             {
-                var linebrush = displayLayer.lineBrushes[0];
-                if (IsUnsafeBrush(linebrush))
-                {
-                    //_d2dContext.EndDraw();
-                    return;
-                };
+                if (IsUnsafeBrush(displayLayer.lineBrushes[0])) return;
 
                 var points = displayLayer.rightPoints;
                 // We have points to draw
                 if (points.Count > 0)
                 {
                     var pointsL = displayLayer.leftPoints;
-                    if (pointsL.Count > 0) // If there are more points to draw, add them
+                    if (pointsL.Count() > 0) // If there are more points to draw, add them
                     {
                         pointsL.Reverse();
                         if (Visualizer.InstanceOptions._visualizationMode == VisualizationMode.Center)
@@ -478,7 +378,7 @@ namespace FreqFreak
                         }
                         points.AddRange(pointsL);
                         var geomL = BuildCatmullRomGeometry(points, connectLines);
-                        _d2dContext.DrawGeometry(geomL, linebrush, thickness);
+                        _d2dContext.DrawGeometry(geomL, displayLayer.lineBrushes[0], thickness);
                         geomL.Dispose();
                     }
                     else // Otherwise just draw
@@ -488,28 +388,19 @@ namespace FreqFreak
                         l.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap);
                         points.Add(l);
                         var geom = BuildCatmullRomGeometry(points, connectLines);
-                        if (geom == null)
-                        {
-                            //_d2dContext.EndDraw();
-                            return;
-                        };
+                        if (geom == null) return;
 
-                        _d2dContext.DrawGeometry(geom, linebrush, thickness);
+                        _d2dContext.DrawGeometry(geom, displayLayer.lineBrushes[0], thickness);
                         geom.Dispose();
                     }
-                    //displayLayer.lineBrushes[0].Dispose();
                 }
+                displayLayer.lineBrushes[0].Dispose();
             }
 
             // Draw the peak lines if needed
             if (peaksLine)
             {
-                var linebrush = displayLayer.lineBrushes[1];
-                if (IsUnsafeBrush(linebrush))
-                {
-                    //_d2dContext.EndDraw();
-                    return;
-                };
+                if (IsUnsafeBrush(displayLayer.lineBrushes[1])) return;
 
                 var points = displayLayer.PeaksR.Select(x => new Vector2(x.Left, x.Top)).ToList();
                 var pointsL = displayLayer.PeaksL.Select(x => new Vector2(x.Left, x.Top)).ToList();
@@ -531,7 +422,7 @@ namespace FreqFreak
                         }
                         points.AddRange(pointsL);
                         var geomL = BuildCatmullRomGeometry(points, connectLines);
-                        _d2dContext.DrawGeometry(geomL, linebrush, thickness);
+                        _d2dContext.DrawGeometry(geomL, displayLayer.lineBrushes[1], thickness);
                         geomL.Dispose();
                     }
                     else
@@ -541,29 +432,23 @@ namespace FreqFreak
                         l.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap);
                         points.Add(l);
                         var geom = BuildCatmullRomGeometry(points, connectLines);
-                        if (geom == null)
-                        {
-                            //_d2dContext.EndDraw();
-                            return;
-                        }
+                        if (geom == null) return;
 
-                        _d2dContext.DrawGeometry(geom, linebrush, thickness);
+                        _d2dContext.DrawGeometry(geom, displayLayer.lineBrushes[1], thickness);
                         geom.Dispose();
                     }
-                    //displayLayer.lineBrushes[1].Dispose();
                 }
+                displayLayer.lineBrushes[1].Dispose();
             }
 
-            //if (!IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
-            //{
-            //    displayLayer.VerticalBrushs[0].Dispose();
-            //}
+            if (!IsUnsafeBrush(displayLayer.VerticalBrushs[0]))
+            {
+                displayLayer.VerticalBrushs[0].Dispose();
+            }
 
             // Finish drawing
-            _d2dContext.EndDraw();
-            //QueueLayerDispose(displayLayer);
+            var res = _d2dContext.EndDraw();
         }
-
 
         private ID2D1PathGeometry BuildCatmullRomGeometry(List<Vector2> pts, bool open)
         {
@@ -609,6 +494,7 @@ namespace FreqFreak
                 sink.EndFigure(end);
                 sink.Close();
             }
+            var bounds = geom.GetBounds();
             return geom;
         }
 
@@ -640,7 +526,7 @@ namespace FreqFreak
 
                 layer = UpdatePeakRectangles(layer);
 
-                if(layer == null)
+                if (layer == null)
                 {
                     return;
                 }
@@ -654,7 +540,7 @@ namespace FreqFreak
             {
                 // Don't
             }
-            
+
         }
 
         private Layer UpdateBars(double[] frame, double[] frameRight = null)
@@ -705,7 +591,7 @@ namespace FreqFreak
 
                 if (stereo)
                 {
-                    if (frameRight.Length <= i)
+                    if (frameRight.Length < i)
                     {
                         break;
                     }
@@ -714,7 +600,7 @@ namespace FreqFreak
                 }
             }
 
-            if(barLen != MainWindow._peaks.Length)
+            if (barLen != MainWindow._peaks.Length)
             {
                 return null;
             }
@@ -743,7 +629,7 @@ namespace FreqFreak
                 Layer.lineBrushes[1] = lineBrush;
             }
 
-            if(Visualizer.InstanceOptions._barColorType == ColorMode.GradientVertical ||
+            if (Visualizer.InstanceOptions._barColorType == ColorMode.GradientVertical ||
                 Visualizer.InstanceOptions._barColorType == ColorMode.DualColorVertical)
             {
                 Layer.VerticalBrushs[0] = (ID2D1LinearGradientBrush)CreateBrushForLayer(false, 0, barLen, actualWidth, (float)height, 0, localMax);
@@ -818,7 +704,7 @@ namespace FreqFreak
                         newRect.Top = (float)height - newRect.Height;
                         if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = current;
                         if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                            Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical)
+                            Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
                         {
                             newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, newRect.Height, newRect.Top, localMax);
                         }
@@ -854,7 +740,7 @@ namespace FreqFreak
                             if (MainWindow._peaks[i] < currentRight) MainWindow._peaks[i] = currentRight;
                             if (MainWindow._peaksRight[i] < currentLeft) MainWindow._peaksRight[i] = currentLeft;
                             if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical)
+                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
                             {
                                 newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, newRect.Height, newRect.Top, localMax);
                             }
@@ -878,7 +764,7 @@ namespace FreqFreak
 
                             if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = current;
                             if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical)
+                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
                             {
                                 newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, newRect.Height, newRect.Top, localMax);
                             }
@@ -902,7 +788,7 @@ namespace FreqFreak
 
                         if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = current;
                         if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                            Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical)
+                            Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
                         {
                             newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, newRect.Height, newRect.Top, localMax);
                         }
@@ -933,7 +819,7 @@ namespace FreqFreak
 
                             if (Visualizer.InstanceOptions._showLines)
                             {
-                                Layer.leftPoints.Add(new Vector2((float)(x + sgn * cos * currentLeft), (float)(y + sgn * sin * currentLeft))); 
+                                Layer.leftPoints.Add(new Vector2((float)(x + sgn * cos * currentLeft), (float)(y + sgn * sin * currentLeft)));
                                 Layer.rightPoints.Add(new Vector2((float)(xMirror + sgn * cosR * currentRight), (float)(y + sgn * sinR * currentRight)));
                                 if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = currentLeft;
                                 if (MainWindow._peaksRight[i] < currentRight) MainWindow._peaksRight[i] = currentRight;
@@ -965,7 +851,7 @@ namespace FreqFreak
                             }
 
                             if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical)
+                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
                             {
                                 newBarProperties.BrushL = CreateBrushForLayer(false, i, barLen, actualWidth, (float)currentLeft, newRect.Top, localMax);
                                 newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, (float)currentRight, newRect.Top, localMax);
@@ -1007,7 +893,7 @@ namespace FreqFreak
 
                             if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = current;
                             if (Visualizer.InstanceOptions._barColorType != ColorMode.GradientVertical &&
-                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical)
+                                Visualizer.InstanceOptions._barColorType != ColorMode.DualColorVertical && !Visualizer.InstanceOptions._showLines)
                             {
                                 newBarProperties.BrushM = CreateBrushForLayer(false, i, barLen, actualWidth, (float)current, newRect.Top, localMax);
                             }
@@ -1050,7 +936,7 @@ namespace FreqFreak
             var barArr = MainWindow._peaks;
             var barArrL = MainWindow._peaksRight;
 
-            if(barArr.Length != layer.Bars.Length)
+            if (barArr.Length != layer.Bars.Length)
             {
                 return null;
             }
@@ -1074,7 +960,11 @@ namespace FreqFreak
                             newRect.Top = actualHeight - (float)barArr[i];
 
                         layer.PeaksR[i] = newRect;
-                        layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArr[i], 0, layer.max);
+
+                        if (!Visualizer.InstanceOptions._showPeaksLine) 
+                        { 
+                            layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArr[i], 0, layer.max);
+                        }
                     }
                     break;
 
@@ -1133,9 +1023,11 @@ namespace FreqFreak
                             layer.PeaksL[i] = newRectL;
                             layer.PeaksR[i] = newRectR;
 
-                            layer.BarProperties[i].BrushPL = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArrL[i], 0, layer.max); ;
-                            layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArr[i], 0, layer.max);
-
+                            if (!Visualizer.InstanceOptions._showPeaksLine)
+                            {
+                                layer.BarProperties[i].BrushPL = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArrL[i], 0, layer.max); ;
+                                layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArr[i], 0, layer.max);
+                            }
                         }
                     }
                     else // mono circle
@@ -1162,8 +1054,10 @@ namespace FreqFreak
                             newRect.Top = outer ? (float)yTip : (float)(yTip - 4.0);
 
                             layer.PeaksR[i] = newRect;
-                            layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArr[i], 0, layer.max);
-                            
+                            if (!Visualizer.InstanceOptions._showPeaksLine)
+                            {
+                                layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)barArr[i], 0, layer.max);
+                            }
                         }
                     }
                     break;
@@ -1185,9 +1079,11 @@ namespace FreqFreak
                             newRectL.Top = (float)(halfCanvas - (barArrL[i] * 0.5));
                             newRect.Top = (float)(halfCanvas + (barArr[i] * 0.5) - 2.0);
 
-                            layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)(barArr[i] - halfCanvas), 0, layer.max); ;
-                            layer.BarProperties[i].BrushPL = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)(halfCanvas - barArrL[i]), 0, layer.max);
-                            
+                            if (!Visualizer.InstanceOptions._showPeaksLine)
+                            {
+                                layer.BarProperties[i].BrushPM = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)(barArr[i] - halfCanvas), 0, layer.max); ;
+                                layer.BarProperties[i].BrushPL = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)(halfCanvas - barArrL[i]), 0, layer.max);
+                            }
                         }
                         else
                         {
@@ -1195,10 +1091,13 @@ namespace FreqFreak
                             newRectL.Top = (float)(halfCanvas - peak);
                             newRect.Top = (float)(halfCanvas + peak - 2.0);
 
-                            var brush = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)(barArr[i]), 0, layer.max);
-                            layer.BarProperties[i].BrushPM = brush;
-                            layer.BarProperties[i].BrushPL = brush;
-                            
+                            if (!Visualizer.InstanceOptions._showPeaksLine)
+                            {
+                                var brush = CreateBrushForPeaksLayer(i, barCount, barWidth, (float)(barArr[i]), 0, layer.max);
+                                layer.BarProperties[i].BrushPM = brush;
+                                layer.BarProperties[i].BrushPL = brush;
+                            }
+
                         }
 
 
@@ -1267,7 +1166,15 @@ namespace FreqFreak
             }
 
             var clrMode = peaks ? Visualizer.InstanceOptions._peakColorType : Visualizer.InstanceOptions._barColorType;
-            var type = clrMode == ColorMode.Match ? Visualizer.InstanceOptions._barColorType : Visualizer.InstanceOptions._peakColorType;
+            ColorMode type = ColorMode.SolidColor;
+            if (peaks)
+            {
+                type = clrMode == ColorMode.Match ? Visualizer.InstanceOptions._barColorType : Visualizer.InstanceOptions._peakColorType;
+            }
+            else
+            {
+                type = clrMode;
+            }
             var clr1 = peaks && clrMode != ColorMode.Match ? MainWindow._color3 : MainWindow._color1;
             var clr2 = peaks && clrMode != ColorMode.Match ? MainWindow._color4 : MainWindow._color2;
             var grdClrs = peaks && clrMode != ColorMode.Match ? MainWindow.colorPeakArrayGradient : MainWindow.colorArrayGradient;
@@ -1351,7 +1258,7 @@ namespace FreqFreak
                 case ColorMode.GradientPitch:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         PitchDetector.GetPitchColor(MainWindow.PitchFreq, grdClrs)));
-                case ColorMode.DualColorPitch: 
+                case ColorMode.DualColorPitch:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         PitchDetector.GetPitchColor(MainWindow.PitchFreq, new[] { clr1, clr2 })));
                 case ColorMode.GradientFrequency:
@@ -1369,7 +1276,7 @@ namespace FreqFreak
                     return _d2dContext.CreateSolidColorBrush(ToColor4(MainWindow._color1));
             }
         }
-        private ID2D1Brush CreateBrushForPeaksLayer(int index,int total, float width, float height, float top, double max)
+        private ID2D1Brush CreateBrushForPeaksLayer(int index, int total, float width, float height, float top, double max)
         {
             float ratio = 0;
             if (max > 0)
@@ -1415,15 +1322,15 @@ namespace FreqFreak
                 case ColorMode.GradientPitch:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         PitchDetector.GetPitchColor(MainWindow.PitchFreq, grdClrs)));
-                case ColorMode.DualColorPitch: 
+                case ColorMode.DualColorPitch:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         PitchDetector.GetPitchColor(MainWindow.PitchFreq, new[] { clr1, clr2 })));
-                case ColorMode.GradientFrequency: 
+                case ColorMode.GradientFrequency:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         Visualizer.GetGradientColor(
                             grdClrs,
                             (MainWindow.PitchFreq / 2200) - 0.03)));
-                case ColorMode.DualColorFrequency: 
+                case ColorMode.DualColorFrequency:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         Visualizer.GetGradientColor(
                             new[] { clr1, clr2 },
@@ -1506,15 +1413,15 @@ namespace FreqFreak
                 case ColorMode.GradientPitch:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         PitchDetector.GetPitchColor(MainWindow.PitchFreq, grdClrs)));
-                case ColorMode.DualColorPitch: 
+                case ColorMode.DualColorPitch:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         PitchDetector.GetPitchColor(MainWindow.PitchFreq, new[] { clr1, clr2 })));
-                case ColorMode.GradientFrequency: 
+                case ColorMode.GradientFrequency:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         Visualizer.GetGradientColor(
                             grdClrs,
                             (MainWindow.PitchFreq / 2200) - 0.03)));
-                case ColorMode.DualColorFrequency: 
+                case ColorMode.DualColorFrequency:
                     return _d2dContext.CreateSolidColorBrush(ToColor4(
                         Visualizer.GetGradientColor(
                             new[] { clr1, clr2 },
