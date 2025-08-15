@@ -372,8 +372,8 @@ namespace FreqFreak
                             var l2 = pointsL.First();
                             points.Remove(l);
                             pointsL.Remove(l2);
-                            l.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
-                            l2.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
+                            l.X = (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
+                            l2.X = (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
                             points.Add(l);
                             points.Add(l2);
                         }
@@ -415,8 +415,8 @@ namespace FreqFreak
                             var l2 = pointsL.First();
                             points.Remove(l);
                             pointsL.Remove(l2);
-                            l.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
-                            l2.X += (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
+                            l.X = (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
+                            l2.X = (Visualizer.InstanceOptions._barWidth + Visualizer.InstanceOptions._barGap) * (Visualizer.InstanceOptions._bars) - Visualizer.InstanceOptions._barWidth;
                             points.Add(l);
                             points.Add(l2);
                         }
