@@ -1076,28 +1076,15 @@ namespace FreqFreak
                 ResizeBars();
             }
 
-            var binEdges = Visualizer.GetFrameEdges();
-            if (binEdges != null)
+            if (Visualizer.InstanceOptions._detectPitch)
             {
-                if (Visualizer.InstanceOptions._invertSpectrum)
+                var binEdges = Visualizer.GetFrameEdges();
+                if (binEdges != null)
                 {
-                    var arr = _peaks.Reverse().ToArray();
-                    var arr2 = _peaksRight.Reverse().ToArray();
-                    var binCenters = PitchDetector.CalculateBinCenters(binEdges);
-                    var pitchInfo = PitchDetector.DetectPitch(arr, binCenters);
-                    PitchText = pitchInfo.note;
-                    PitchFreq = pitchInfo.frequency;
-
-                    var BassAmplitudeL = PitchDetector.DetectBassAmplitude(arr, binCenters, Visualizer.InstanceOptions._height);
-                    var BassAmplitudeR = PitchDetector.DetectBassAmplitude(arr2, binCenters, Visualizer.InstanceOptions._height);
-                    BassAmplitude = (BassAmplitudeL + BassAmplitudeR) / 2;
-                }
-                else
-                {
-                    try
+                    if (Visualizer.InstanceOptions._invertSpectrum)
                     {
-                        var arr = _peaks.ToArray();
-                        var arr2 = _peaksRight.ToArray();
+                        var arr = _peaks.Reverse().ToArray();
+                        var arr2 = _peaksRight.Reverse().ToArray();
                         var binCenters = PitchDetector.CalculateBinCenters(binEdges);
                         var pitchInfo = PitchDetector.DetectPitch(arr, binCenters);
                         PitchText = pitchInfo.note;
@@ -1107,12 +1094,28 @@ namespace FreqFreak
                         var BassAmplitudeR = PitchDetector.DetectBassAmplitude(arr2, binCenters, Visualizer.InstanceOptions._height);
                         BassAmplitude = (BassAmplitudeL + BassAmplitudeR) / 2;
                     }
-                    catch (Exception)
+                    else
                     {
+                        try
+                        {
+                            var arr = _peaks.ToArray();
+                            var arr2 = _peaksRight.ToArray();
+                            var binCenters = PitchDetector.CalculateBinCenters(binEdges);
+                            var pitchInfo = PitchDetector.DetectPitch(arr, binCenters);
+                            PitchText = pitchInfo.note;
+                            PitchFreq = pitchInfo.frequency;
 
+                            var BassAmplitudeL = PitchDetector.DetectBassAmplitude(arr, binCenters, Visualizer.InstanceOptions._height);
+                            var BassAmplitudeR = PitchDetector.DetectBassAmplitude(arr2, binCenters, Visualizer.InstanceOptions._height);
+                            BassAmplitude = (BassAmplitudeL + BassAmplitudeR) / 2;
+                        }
+                        catch (Exception)
+                        {
+
+                        }
                     }
+
                 }
-                
             }
 
             try

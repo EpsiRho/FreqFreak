@@ -71,6 +71,7 @@ namespace FreqFreak
         public bool _showLines { get; set; }
         public bool _showBars { get; set; }
         public bool _invertSpectrum { get; set; }
+        public bool _detectPitch { get; set; }
         public int _rotateColor { get; set; }
         public double _peakDecay { get; set; }
         public double _peakHold { get; set; }
@@ -113,6 +114,7 @@ namespace FreqFreak
             _showLines = false;
             _showPeaksLine = false;
             _showBars = true;
+            _detectPitch = true;
             _scaleMode = ScaleMode.Normalized;
             _barColorType = ColorMode.SolidColor;
             _peakColorType = ColorMode.Match;

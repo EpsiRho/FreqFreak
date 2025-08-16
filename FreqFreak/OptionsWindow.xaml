@@ -381,6 +381,18 @@
                                  Style="{StaticResource WinUI3TextBoxStyle}"
                                  TextChanged="Input_TextChanged" Grid.Column="1" Grid.Row="3" Margin="0,20,0,0"/>
 
+                        <TextBlock Grid.Column="2" Grid.Row="5" Margin="0,-2,0,0">Detect Pitch 
+                            <Span FontSize="18">
+                                <Span.ToolTip>
+                                    <ToolTip Style="{StaticResource WinUI3ToolTipStyle}" Content="Enable/Disable the pitch + frequency peak tracking" />
+                                </Span.ToolTip>
+                                ⓘ
+                            </Span>         
+                        </TextBlock>
+                        <CheckBox x:Name="DetectPitch" Width="100" HorizontalAlignment="Left" IsChecked="True"
+                                  Style="{StaticResource WinUI3CheckBoxStyle}"
+                                  Click="DetectPitch_Click" Grid.Column="2" Grid.Row="5" Margin="0,22,0,0"/>
+
                     </Grid>
                 </GroupBox>
 
@@ -789,7 +801,7 @@
                                   Click="PreviewInput_Click" Grid.Column="2" Grid.Row="4" Margin="0,22,0,0"/>
                     </Grid>
                 </GroupBox>
-                <TextBlock Text="Version 2.0.11"/>
+                <TextBlock Text="Version 2.0.12"/>
             </StackPanel>
         </ScrollViewer>
 

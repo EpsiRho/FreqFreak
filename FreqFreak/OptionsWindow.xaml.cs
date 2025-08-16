@@ -56,7 +56,7 @@ namespace FreqFreak
                             var fps = MainWindow.displayFpsMeter.RollingFps;
                             var fftps = Visualizer.fpsMeter.RollingFps;
 
-                            double fpsStep = fps / 80;
+                            double fpsStep = fps / 50;
                             double fftpsStep = fftps / 120;
 
                             var timeSinceLastChange = (DateTime.Now - lastPitchChange).TotalMilliseconds;
@@ -72,17 +72,16 @@ namespace FreqFreak
                             var fftpsClr = Visualizer.GetGradientColor(new Color[] { badClr, goodClr }, fftpsStep);
                             var pitchClr = Visualizer.GetGradientColor(new Color[] { transparentPitch, pitchLockColor }, pitchStep);
 
-                            if(ActualWidth < 440)
+                            FPSMeter.Text = $"Render: {fps.ToString("00000.0")}/s";
+                            FFTPSMeter.Text = $"Spectra: {fftps.ToString("00000.0")}/s";
+                            if (Visualizer.InstanceOptions._detectPitch)
                             {
-                                FPSMeter.Text = $"{fps.ToString("0000.0")}/s";
-                                FFTPSMeter.Text = $"{fftps.ToString("0000.0")}/s";
-                                PitchDisplay.Text = $"{MainWindow.PitchFreq.ToString("0000")}hz";
+                                PitchDisplay.Text = $"{MainWindow.PitchText}";
                             }
                             else
                             {
-                                FPSMeter.Text = $"Render: {fps.ToString("00000.0")}/s";
-                                FFTPSMeter.Text = $"Spectra: {fftps.ToString("00000.0")}/s";
-                                PitchDisplay.Text = MainWindow.PitchText;
+                                pitchClr = transparentPitch;
+                                PitchDisplay.Text = $"-";
                             }
 
                             var brush = MainWindow.GetHorizontalGradientBrush(new Color[] { fpsClr, fpsClr, fftpsClr, fftpsClr, pitchClr });
@@ -987,6 +986,12 @@ namespace FreqFreak
             if (!AllowValueSet) return;
             Visualizer.InstanceOptions._showLines = ShowLinesInput.IsChecked.Value;
             Visualizer.InstanceOptions._showBars = !ShowLinesInput.IsChecked.Value;
+        }
+
+        private void DetectPitch_Click(object sender, RoutedEventArgs e)
+        {
+            if (!AllowValueSet) return;
+            Visualizer.InstanceOptions._detectPitch = DetectPitch.IsChecked.Value;
         }
     }
 }

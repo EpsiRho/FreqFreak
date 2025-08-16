@@ -183,6 +183,26 @@ namespace FreqFreak
             var clearColor = ToColor4(ClearColor);
             _d2dContext.AntialiasMode = AntialiasMode.Aliased;
             _d2dContext.BeginDraw();
+
+            // Show current layer or if there is none, show the last layer
+            Layer displayLayer;
+            if (_layerQueue.Count() == 0)
+            {
+                displayLayer = _previousLayer;
+            }
+            else
+            {
+                _layerQueue.TryDequeue(out displayLayer);
+                _previousLayer = displayLayer;
+            }
+
+            // If there is no layer there is no draw
+            if (displayLayer == null)
+            {
+                _d2dContext.EndDraw();
+                return;
+            }
+
             _d2dContext.Clear(clearColor);
 
             // Rotate this bitch
@@ -211,25 +231,6 @@ namespace FreqFreak
             m *= Matrix3x2.CreateTranslation(wd, hd); // new center
 
             _d2dContext.Transform = m;
-
-            // Show current layer or if there is none, show the last layer
-            Layer displayLayer;
-            if (_layerQueue.Count() == 0)
-            {
-                displayLayer = _previousLayer;
-            }
-            else
-            {
-                _layerQueue.TryDequeue(out displayLayer);
-                _previousLayer = displayLayer;
-            }
-
-            // If there is no layer there is no draw
-            if (displayLayer == null)
-            {
-                _d2dContext.EndDraw();
-                return;
-            }
 
             // Vars we'll need later
             float centerX = 0f;
@@ -290,16 +291,24 @@ namespace FreqFreak
                 peakBrushType = 3;
             }
 
+            bool disposeBarLeft = false;
+            bool disposePeakLeft = false;
+            bool disposeLineLeft = false;
+            bool disposeBarMono = false;
+            bool disposePeakMono = false;
+            bool disposeLineMono = false;
+
             // Render our bars if needed
             if (Visualizer.InstanceOptions._showBars && !onlyPeaks)
             {
                 if (IsUnsafeBrush(displayLayer.barBrushM))
                 {
+                    _d2dContext.EndDraw();
                     return;
                 }
+                disposeBarMono = true;
 
                 // Render each bar
-                bool disposeLeft = false;
                 for (int i = 0; i < displayLayer.Bars.Length; i++)
                 {
                     var rect = displayLayer.Bars[i];
@@ -338,6 +347,7 @@ namespace FreqFreak
                         {
                             if (IsUnsafeBrush(displayLayer.barBrushL))
                             {
+                                _d2dContext.EndDraw();
                                 return;
                             }
                             var rectL = displayLayer.BarsL[i];
@@ -358,7 +368,7 @@ namespace FreqFreak
                             _d2dContext.Transform = rotMatrixL * originalTransformL;
                             _d2dContext.FillRectangle(rectL, displayLayer.barBrushL);
                             _d2dContext.Transform = originalTransformL;
-                            disposeLeft = true;
+                            disposeBarLeft = true;
                         }
 
                     }
@@ -367,12 +377,6 @@ namespace FreqFreak
                         _d2dContext.FillRectangle(rect, displayLayer.barBrushM);
                     }
                 }
-
-                displayLayer.barBrushM.Dispose();
-                if (disposeLeft)
-                {
-                    displayLayer.barBrushL.Dispose();
-                }
             }
 
             // Render the peak bars if needed
@@ -380,9 +384,10 @@ namespace FreqFreak
             {
                 if (IsUnsafeBrush(displayLayer.peakBrushM))
                 {
+                    _d2dContext.EndDraw();
                     return;
                 }
-                bool disposeLeft = false;
+                disposePeakMono = true;
                 for (int i = 0; i < displayLayer.Bars.Length; i++)
                 {
                     var rect = displayLayer.PeaksR[i];
@@ -420,6 +425,7 @@ namespace FreqFreak
                         {
                             if (IsUnsafeBrush(displayLayer.peakBrushL))
                             {
+                                _d2dContext.EndDraw();
                                 return;
                             }
 
@@ -444,7 +450,7 @@ namespace FreqFreak
                             _d2dContext.Transform = rotMatrixL * originalTransformL;
                             _d2dContext.FillRectangle(rectL, displayLayer.peakBrushL);
                             _d2dContext.Transform = originalTransformL;
-                            disposeLeft = true;
+                            disposePeakLeft = true;
                         }
                     }
                     else // Otherwise we just place them down
@@ -456,20 +462,15 @@ namespace FreqFreak
 
                             if (IsUnsafeBrush(displayLayer.peakBrushL))
                             {
+                                _d2dContext.EndDraw();
                                 return;
                             }
-                            disposeLeft = true;
+                            disposePeakLeft = true;
                             SetBrushTransform(true, peakBrushType, displayLayer.peakBrushL, rectL, fh, fw, (float)valM);
 
                             _d2dContext.FillRectangle(rectL, displayLayer.peakBrushL);
                         }
                     }
-                }
-
-                displayLayer.peakBrushM.Dispose();
-                if (disposeLeft)
-                {
-                    displayLayer.peakBrushL.Dispose();
                 }
             }
 
@@ -478,8 +479,10 @@ namespace FreqFreak
             {
                 if (IsUnsafeBrush(displayLayer.lineBrushM))
                 {
+                    _d2dContext.EndDraw();
                     return;
                 }
+                disposeLineMono = true;
 
                 var points = displayLayer.rightPoints;
                 // We have points to draw
@@ -514,6 +517,7 @@ namespace FreqFreak
                         var geom = BuildCatmullRomGeometry(points, connectLines);
                         if (geom == null)
                         {
+                            _d2dContext.EndDraw();
                             return;
                         }
 
@@ -521,7 +525,6 @@ namespace FreqFreak
                         geom.Dispose();
                     }
                 }
-                displayLayer.lineBrushM.Dispose();
             }
 
             // Draw the peak lines if needed
@@ -529,8 +532,11 @@ namespace FreqFreak
             {
                 if (IsUnsafeBrush(displayLayer.lineBrushL))
                 {
+                    _d2dContext.EndDraw();
                     return;
                 }
+
+                disposeLineLeft = true;
 
                 var points = displayLayer.PeaksR.Select(x => new Vector2(x.Left, x.Top)).ToList();
                 var pointsL = displayLayer.PeaksL.Select(x => new Vector2(x.Left, x.Top)).ToList();
@@ -564,6 +570,7 @@ namespace FreqFreak
                         var geom = BuildCatmullRomGeometry(points, connectLines);
                         if (geom == null)
                         {
+                            _d2dContext.EndDraw();
                             return;
                         }
 
@@ -571,11 +578,34 @@ namespace FreqFreak
                         geom.Dispose();
                     }
                 }
-                displayLayer.lineBrushL.Dispose();
             }
 
             // Finish drawing
-            var res = _d2dContext.EndDraw();
+            _d2dContext.EndDraw();
+            if (disposeBarMono)
+            {
+                displayLayer.barBrushM.Dispose();
+            }
+            if (disposeBarLeft)
+            {
+                displayLayer.barBrushL.Dispose();
+            }
+            if (disposePeakMono)
+            {
+                displayLayer.peakBrushM.Dispose();
+            }
+            if (disposePeakLeft)
+            {
+                displayLayer.peakBrushL.Dispose();
+            }
+            if (disposeLineMono)
+            {
+                displayLayer.lineBrushM.Dispose();
+            }
+            if (disposeLineLeft)
+            {
+                displayLayer.lineBrushL.Dispose();
+            }
         }
 
         private ID2D1PathGeometry BuildCatmullRomGeometry(List<Vector2> pts, bool open)
@@ -652,11 +682,14 @@ namespace FreqFreak
                     return;
                 }
 
-                layer = UpdatePeakRectangles(layer);
-
-                if (layer == null)
+                if (Visualizer.InstanceOptions._showPeaks || Visualizer.InstanceOptions._showPeaksLine)
                 {
-                    return;
+                    layer = UpdatePeakRectangles(layer);
+
+                    if (layer == null)
+                    {
+                        return;
+                    }
                 }
 
                 _layerQueue.Enqueue(layer);
@@ -993,6 +1026,9 @@ namespace FreqFreak
                             {
                                 newRect.Top = (float)(y - current);
                             }
+
+                            if (MainWindow._peaks[i] < current) MainWindow._peaks[i] = current;
+                            if (MainWindow._peaksRight[i] < currentRight) MainWindow._peaksRight[i] = currentRight;
 
                         }
                         break;
