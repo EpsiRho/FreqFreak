@@ -144,7 +144,7 @@ namespace FreqFreak
 
                 try
                 {
-                    Dispatcher.InvokeAsync(() =>
+                    Dispatcher.Invoke(() =>
                     {
                         Width = newWidth * BassScale;
                         Height = newHeight * BassScale;

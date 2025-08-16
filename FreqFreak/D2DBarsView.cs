@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Numerics;
 using System.Windows;
 using System.Windows.Media.Media3D;
@@ -38,6 +39,12 @@ namespace FreqFreak
             public ID2D1Brush? peakBrushL;
             public ID2D1Brush? lineBrushM; 
             public ID2D1Brush? lineBrushL;
+            public bool disposeBarLeft = false;
+            public bool disposePeakLeft = false;
+            public bool disposeLineLeft = false;
+            public bool disposeBarMono = false;
+            public bool disposePeakMono = false;
+            public bool disposeLineMono = false;
         }
 
         private ConcurrentQueue<Layer> _layerQueue = new();
@@ -193,6 +200,35 @@ namespace FreqFreak
             else
             {
                 _layerQueue.TryDequeue(out displayLayer);
+
+                if (_previousLayer != null)
+                {
+                    if (_previousLayer.disposeBarLeft)
+                    {
+                        _previousLayer.barBrushL.Dispose();
+                    }
+                    if (_previousLayer.disposePeakLeft)
+                    {
+                        _previousLayer.peakBrushL.Dispose();
+                    }
+                    if (_previousLayer.disposeLineLeft)
+                    {
+                        _previousLayer.lineBrushL.Dispose();
+                    }
+                    if (_previousLayer.disposeBarMono)
+                    {
+                        _previousLayer.barBrushM.Dispose();
+                    }
+                    if (_previousLayer.disposePeakMono)
+                    {
+                        _previousLayer.peakBrushM.Dispose();
+                    }
+                    if (_previousLayer.disposeLineMono)
+                    {
+                        _previousLayer.lineBrushM.Dispose();
+                    }
+                }
+
                 _previousLayer = displayLayer;
             }
 
@@ -291,12 +327,7 @@ namespace FreqFreak
                 peakBrushType = 3;
             }
 
-            bool disposeBarLeft = false;
-            bool disposePeakLeft = false;
-            bool disposeLineLeft = false;
-            bool disposeBarMono = false;
-            bool disposePeakMono = false;
-            bool disposeLineMono = false;
+            
 
             // Render our bars if needed
             if (Visualizer.InstanceOptions._showBars && !onlyPeaks)
@@ -306,7 +337,7 @@ namespace FreqFreak
                     _d2dContext.EndDraw();
                     return;
                 }
-                disposeBarMono = true;
+                displayLayer.disposeBarMono = true;
 
                 // Render each bar
                 for (int i = 0; i < displayLayer.Bars.Length; i++)
@@ -368,7 +399,7 @@ namespace FreqFreak
                             _d2dContext.Transform = rotMatrixL * originalTransformL;
                             _d2dContext.FillRectangle(rectL, displayLayer.barBrushL);
                             _d2dContext.Transform = originalTransformL;
-                            disposeBarLeft = true;
+                            displayLayer.disposeBarLeft = true;
                         }
 
                     }
@@ -387,7 +418,7 @@ namespace FreqFreak
                     _d2dContext.EndDraw();
                     return;
                 }
-                disposePeakMono = true;
+                displayLayer.disposePeakMono = true;
                 for (int i = 0; i < displayLayer.Bars.Length; i++)
                 {
                     var rect = displayLayer.PeaksR[i];
@@ -450,7 +481,7 @@ namespace FreqFreak
                             _d2dContext.Transform = rotMatrixL * originalTransformL;
                             _d2dContext.FillRectangle(rectL, displayLayer.peakBrushL);
                             _d2dContext.Transform = originalTransformL;
-                            disposePeakLeft = true;
+                            displayLayer.disposePeakLeft = true;
                         }
                     }
                     else // Otherwise we just place them down
@@ -465,7 +496,7 @@ namespace FreqFreak
                                 _d2dContext.EndDraw();
                                 return;
                             }
-                            disposePeakLeft = true;
+                            displayLayer.disposePeakLeft = true;
                             SetBrushTransform(true, peakBrushType, displayLayer.peakBrushL, rectL, fh, fw, (float)valM);
 
                             _d2dContext.FillRectangle(rectL, displayLayer.peakBrushL);
@@ -482,7 +513,7 @@ namespace FreqFreak
                     _d2dContext.EndDraw();
                     return;
                 }
-                disposeLineMono = true;
+                displayLayer.disposeLineMono = true;
 
                 var points = displayLayer.rightPoints;
                 // We have points to draw
@@ -536,7 +567,7 @@ namespace FreqFreak
                     return;
                 }
 
-                disposeLineLeft = true;
+                displayLayer.disposeLineLeft = true;
 
                 var points = displayLayer.PeaksR.Select(x => new Vector2(x.Left, x.Top)).ToList();
                 var pointsL = displayLayer.PeaksL.Select(x => new Vector2(x.Left, x.Top)).ToList();
@@ -581,30 +612,10 @@ namespace FreqFreak
             }
 
             // Finish drawing
-            _d2dContext.EndDraw();
-            if (disposeBarMono)
+            var res = _d2dContext.EndDraw();
+            if (!res.Success)
             {
-                displayLayer.barBrushM.Dispose();
-            }
-            if (disposeBarLeft)
-            {
-                displayLayer.barBrushL.Dispose();
-            }
-            if (disposePeakMono)
-            {
-                displayLayer.peakBrushM.Dispose();
-            }
-            if (disposePeakLeft)
-            {
-                displayLayer.peakBrushL.Dispose();
-            }
-            if (disposeLineMono)
-            {
-                displayLayer.lineBrushM.Dispose();
-            }
-            if (disposeLineLeft)
-            {
-                displayLayer.lineBrushL.Dispose();
+                Debug.WriteLine($"{res.Code}");
             }
         }
 

@@ -1059,7 +1059,10 @@ namespace FreqFreak
 
             if (Visualizer.InstanceOptions._visualizationMode != VisualizationMode.Oscilloscope)
             {
-                if (frame == null) return;
+                if (frame == null)
+                {
+                    return;
+                }
 
                 if (Visualizer.InstanceOptions._invertSpectrum)
                 {
