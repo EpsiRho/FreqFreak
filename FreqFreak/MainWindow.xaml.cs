@@ -90,7 +90,8 @@ namespace FreqFreak
         {
             dragHandler = new(this);
             Visualizer.MainWin = this;
-            Visualizer.InstanceOptions.SetDefaults();
+            Visualizer.InstanceOptions.SetDefaults(); // Set defaults first
+            LoadConfig(); // Then override with saved values
             InitializeComponent();
 
             Loaded += (_, __) => _hwnd = new WindowInteropHelper(this).Handle;
@@ -152,6 +153,8 @@ namespace FreqFreak
             {
                 CreateNewOptionsWindow();
             };
+
+            this.Closed += (_, __) => SaveConfig();
         }
         private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
@@ -1602,6 +1605,43 @@ namespace FreqFreak
             _cts.Cancel();
             _trayIcon?.Dispose();
             _icon?.Dispose();
+        }
+
+        private const string ConfigFilePath = "FreqFreakConfig.json";
+
+        // Save settings
+        private void SaveConfig()
+        {
+            try
+            {
+                var json = JsonConvert.SerializeObject(Visualizer.InstanceOptions, Formatting.Indented);
+                File.WriteAllText(ConfigFilePath, json);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Failed to save config: " + ex.Message);
+            }
+        }
+
+        // Load settings
+        private void LoadConfig()
+        {
+            try
+            {
+                if (File.Exists(ConfigFilePath))
+                {
+                    var json = File.ReadAllText(ConfigFilePath);
+                    var options = JsonConvert.DeserializeObject<Settings>(json);
+                    if (options != null)
+                    {
+                        Visualizer.InstanceOptions = options;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Failed to load config: " + ex.Message);
+            }
         }
     }
 }
