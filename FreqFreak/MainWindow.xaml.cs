@@ -180,6 +180,7 @@ namespace FreqFreak
             Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
             ResizeMode = ResizeMode.NoResize;
             Topmost = true;
+            ShowInTaskbar = false; // hide visualizer overlay icon from taskbar
         }
 
 
